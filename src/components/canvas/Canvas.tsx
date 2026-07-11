@@ -314,8 +314,15 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
 
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }
 
+  const isValidConnection = useCallback((connection: Connection) => {
+    if (!connection.source || !connection.target) return false
+    return connection.source !== connection.target
+  }, [])
+
   // Connect nodes
   const onConnect = useCallback((connection: Connection) => {
+    if (!connection.source || !connection.target) return
+    if (connection.source === connection.target) return
     const style = ENLACE_STYLE[tipoEnlaceActivo]
     setEdges((es) => addEdge({
       ...connection,
@@ -640,6 +647,7 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
+          isValidConnection={isValidConnection}
           onEdgeUpdateStart={onEdgeUpdateStart}
           onEdgeUpdate={onEdgeUpdate}
           onEdgeUpdateEnd={onEdgeUpdateEnd}
