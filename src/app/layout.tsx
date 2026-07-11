@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Ingenierías',
-  description: 'Aplicativo de Ingeniería de Red — Totalplay',
+  title: 'Aplicativo de Ingenierías',
+  description: 'Aplicativo de Ingenierías',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
