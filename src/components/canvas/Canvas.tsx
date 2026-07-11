@@ -632,7 +632,13 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
   // comparten el mismo punto de conexión.
   const selectedEdgeId = selectedItem?.kind === 'edge' ? selectedItem.item.id : null
   const displayEdges = useMemo(
-    () => edges.map(e => ({ ...e, updatable: e.id === selectedEdgeId })),
+    () => edges.map(e =>
+      e.id === selectedEdgeId
+        // Enlace seleccionado: por encima del resto para que su extremo (edgeupdater)
+        // no quede tapado por otro enlace que comparta el punto de conexión.
+        ? { ...e, updatable: true, zIndex: 1000 }
+        : { ...e, updatable: false, zIndex: 0 }
+    ),
     [edges, selectedEdgeId]
   )
 
