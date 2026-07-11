@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;font-size:13px;background:transparent}
+.app{display:flex;flex-direction:column;height:580px;background:#f0f2f7;border-radius:10px;overflow:hidden;border:1px solid #d8dce8}
+.topbar{height:42px;background:#fff;border-bottom:1px solid #d8dce8;display:flex;align-items:center;padding:0 14px;gap:10px;justify-content:space-between;flex-shrink:0}
+.tl{display:flex;align-items:center;gap:8px}
+.tr{display:flex;align-items:center;gap:8px}
+.logo{font-size:13px;font-weight:600;color:#2563eb}
+.topo-name{font-size:12px;font-weight:500;color:#1a1e2e}
+.badge{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:500}
+.bd{background:rgba(217,119,6,.12);color:#d97706}
+.bu{background:rgba(220,38,38,.08);color:#dc2626}
+.bc{background:rgba(37,99,235,.08);color:#2563eb}
+.bw{background:rgba(245,158,11,.1);color:#d97706}
+.br{background:rgba(124,58,237,.1);color:#7c3aed}
+.btn-sm{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #bcc2d4;background:#f5f6fa;color:#5a6180}
+.body{display:flex;flex:1;overflow:hidden}
+.sidebar{width:180px;min-width:180px;background:#fff;border-right:1px solid #d8dce8;display:flex;flex-direction:column;overflow:hidden}
+.sec-label{font-size:9px;font-weight:500;color:#9098b0;text-transform:uppercase;letter-spacing:.08em;padding:8px 12px 4px}
+.dev-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:0 7px}
+.dev-item{display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 3px;border-radius:7px;border:1px solid transparent}
+.dev-item:hover{background:#f5f6fa;border-color:#d8dce8}
+.dev-name{font-size:9px;color:#5a6180;text-align:center;line-height:1.2}
+.divider{height:1px;background:#d8dce8;margin:6px 10px}
+.link-types{padding:0 7px 6px;display:flex;flex-direction:column;gap:2px}
+.ltype{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:5px;border:1px solid transparent}
+.ltype.active{background:#f0f1f5;border-color:#2563eb}
+.lname{font-size:10px;color:#5a6180}
+.legend{padding:6px 12px 8px}
+.lrow{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.canvas{flex:1;position:relative;overflow:hidden}
+.props{width:196px;min-width:196px;background:#fff;border-left:1px solid #bcc2d4;display:flex;flex-direction:column;overflow:hidden;box-shadow:-2px 0 8px rgba(0,0,0,.04)}
+.ph{padding:10px 12px 8px;border-bottom:1px solid #d8dce8;display:flex;align-items:center;justify-content:space-between}
+.fg{padding:6px 12px 0}
+.fl{font-size:9px;color:#9098b0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.fi{width:100%;background:#f5f6fa;border:1px solid #d8dce8;border-radius:5px;padding:4px 8px;font-size:11px;color:#1a1e2e;margin-bottom:6px}
+.cok{display:flex;align-items:center;gap:5px;border-radius:6px;padding:5px 8px;margin:8px 12px;font-size:10px;background:rgba(13,148,136,.08);border:1px solid #0d9488;color:#0d9488}
+.ob{display:flex;align-items:center;gap:5px;border-radius:6px;padding:4px 8px;margin:0 12px 8px;font-size:10px;background:rgba(37,99,235,.06);border:1px solid #d8dce8;color:#2563eb}
+.cl{font-size:9px;color:#9098b0;text-transform:uppercase;letter-spacing:.06em;padding:4px 12px 3px}
+.crow{display:flex;gap:4px;padding:0 12px;margin-bottom:4px}
+.ck{flex:1;background:#f5f6fa;border:1px solid #d8dce8;border-radius:4px;padding:3px 6px;font-size:10px;color:#1a1e2e}
+.cv{flex:1;background:#f5f6fa;border:1px solid #d8dce8;border-radius:4px;padding:3px 6px;font-size:10px;color:#5a6180}
+.af{margin:4px 12px 8px;width:calc(100% - 24px);background:transparent;border:1px dashed #bcc2d4;border-radius:5px;padding:4px;font-size:10px;color:#9098b0;text-align:center}
+.mc{position:absolute;bottom:14px;left:14px;display:flex;flex-direction:column;gap:4px;z-index:5}
+.cb{width:26px;height:26px;background:#fff;border:1px solid #d8dce8;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#5a6180;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.fab-area{position:absolute;bottom:0;right:0;width:280px;height:280px;pointer-events:none}
+.fab-area *{pointer-events:all}
+.container{position:relative;width:280px;height:280px}
+.fab-main-btn{position:absolute;bottom:18px;right:18px;width:52px;height:52px;border-radius:50%;background:#dc2626;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 20px rgba(220,38,38,.5);z-index:10;font-size:26px;color:#fff;font-weight:300;user-select:none}
+.fab-it{position:absolute;width:46px;height:46px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-size:18px;box-shadow:0 3px 12px rgba(0,0,0,.2);z-index:9}
+.fab-it small{font-size:8px;margin-top:1px;font-weight:500}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="topbar">
+  <div class="tl">
+    <span class="logo">IngeNet</span>
+    <span style="color:#d8dce8;font-size:16px">|</span>
+    <span class="topo-name">Ingeniería · IMSS · Cuenta 1000023500</span>
+    <span class="badge bd">Nueva</span>
+    <span class="badge bu">● Sin guardar</span>
+    <span class="badge bc">5 dispositivos · 3 enlaces</span>
+    <span class="badge bw">⚠ 1 fuera de CMDB</span>
+  </div>
+  <div class="tr">
+    <span class="badge br">Estándar</span>
+    <span style="font-size:11px;color:#5a6180">Carlos Méndez</span>
+    <button class="btn-sm">🌙 Oscuro</button>
+  </div>
+</div>
+
+<div class="body">
+
+<div class="sidebar">
+  <div class="sec-label">Dispositivos</div>
+  <div class="dev-grid">
+    <div class="dev-item"><svg width="40" height="40" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="7" fill="#eff6ff" stroke="#2563eb" stroke-width="1"/><circle cx="20" cy="20" r="9" fill="none" stroke="#2563eb" stroke-width="1.3"/><line x1="20" y1="11" x2="20" y2="6" stroke="#2563eb" stroke-width="1.4"/><polygon points="20,3 17.5,7 22.5,7" fill="#2563eb"/><line x1="20" y1="29" x2="20" y2="34" stroke="#2563eb" stroke-width="1.4"/><polygon points="20,37 17.5,33 22.5,33" fill="#2563eb"/><line x1="11" y1="20" x2="6" y2="20" stroke="#2563eb" stroke-width="1.4"/><polygon points="3,20 7,17.5 7,22.5" fill="#2563eb"/><line x1="29" y1="20" x2="34" y2="20" stroke="#2563eb" stroke-width="1.4"/><polygon points="37,20 33,17.5 33,22.5" fill="#2563eb"/><circle cx="20" cy="20" r="2" fill="#2563eb" opacity=".8"/></svg><div class="dev-name">Router</div></div>
+    <div class="dev-item"><svg width="40" height="40" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="7" fill="#f0fdfa" stroke="#0d9488" stroke-width="1"/><rect x="6" y="16" width="28" height="12" rx="2.5" fill="none" stroke="#0d9488" stroke-width="1.2"/><rect x="9" y="19" width="2.5" height="6" rx="1" fill="#0d9488" opacity=".6"/><rect x="13" y="19" width="2.5" height="6" rx="1" fill="#0d9488" opacity=".6"/><rect x="17" y="19" width="2.5" height="6" rx="1" fill="#0d9488" opacity=".6"/><rect x="21" y="19" width="2.5" height="6" rx="1" fill="#0d9488" opacity=".6"/><circle cx="30" cy="21" r="1.8" fill="#0d9488"/><circle cx="30" cy="27" r="1.8" fill="#0d9488" opacity=".4"/><line x1="11" y1="15" x2="11" y2="11" stroke="#0d9488" stroke-width="1.2"/><polygon points="11,9 9,13 13,13" fill="#0d9488"/><line x1="22" y1="29" x2="22" y2="33" stroke="#0d9488" stroke-width="1.2"/><polygon points="22,36 20,32 24,32" fill="#0d9488"/></svg><div class="dev-name">Switch</div></div>
+    <div class="dev-item"><svg width="40" height="40" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="7" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/><path d="M20,5 L34,10 L34,22 Q34,34 20,37 Q6,34 6,22 L6,10 Z" fill="none" stroke="#dc2626" stroke-width="1.3"/><line x1="6" y1="19" x2="34" y2="19" stroke="#dc2626" stroke-width="1" opacity=".4"/><line x1="20" y1="10" x2="20" y2="37" stroke="#dc2626" stroke-width="1" opacity=".3"/><circle cx="14" cy="26" r="2.5" fill="#dc2626" opacity=".4"/><circle cx="26" cy="26" r="2.5" fill="#0d9488" opacity=".4"/></svg><div class="dev-name">Firewall</div></div>
+    <div class="dev-item"><svg width="40" height="40" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="7" fill="#f0fdf4" stroke="#16a34a" stroke-width="1"/><rect x="7" y="7" width="26" height="7" rx="2" fill="none" stroke="#16a34a" stroke-width="1.2"/><rect x="7" y="17" width="26" height="7" rx="2" fill="none" stroke="#16a34a" stroke-width="1.2"/><rect x="7" y="27" width="26" height="7" rx="2" fill="none" stroke="#16a34a" stroke-width="1.2"/><circle cx="29" cy="10.5" r="1.6" fill="#16a34a"/><circle cx="29" cy="20.5" r="1.6" fill="#16a34a" opacity=".5"/><circle cx="29" cy="30.5" r="1.6" fill="#16a34a" opacity=".3"/><rect x="9" y="9" width="14" height="2" rx="1" fill="#16a34a" opacity=".4"/><rect x="9" y="19" width="14" height="2" rx="1" fill="#16a34a" opacity=".4"/><rect x="9" y="29" width="14" height="2" rx="1" fill="#16a34a" opacity=".4"/></svg><div class="dev-name">Server</div></div>
+    <div class="dev-item"><svg width="40" height="40" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="7" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1"/><rect x="14" y="4" width="12" height="32" rx="2.5" fill="none" stroke="#7c3aed" stroke-width="1.2"/><rect x="17" y="8" width="6" height="1.5" rx="1" fill="#7c3aed" opacity=".6"/><rect x="17" y="12" width="6" height="1.5" rx="1" fill="#7c3aed" opacity=".6"/><rect x="17" y="16" width="6" height="1.5" rx="1" fill="#7c3aed" opacity=".6"/><rect x="17" y="20" width="6" height="1.5" rx="1" fill="#7c3aed" opacity=".6"/><circle cx="20" cy="29" r="3" fill="#7c3aed" opacity=".2" stroke="#7c3aed" stroke-width="1"/><circle cx="20" cy="29" r="1.2" fill="#7c3aed"/><line x1="20" y1="1" x2="20" y2="4" stroke="#7c3aed" stroke-width="1.5"/></svg><div class="dev-name">OLT</div></div>
+    <div class="dev-item"><svg width="40" height="40" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="7" fill="#fffbeb" stroke="#d97706" stroke-width="1"/><rect x="6" y="22" width="28" height="14" rx="2.5" fill="none" stroke="#d97706" stroke-width="1.2"/><line x1="20" y1="9" x2="12" y2="22" stroke="#d97706" stroke-width="1.4"/><line x1="20" y1="9" x2="20" y2="22" stroke="#d97706" stroke-width="1.4"/><line x1="20" y1="9" x2="28" y2="22" stroke="#d97706" stroke-width="1.4"/><circle cx="20" cy="8" r="2.5" fill="#d97706" opacity=".9"/><circle cx="12" cy="30" r="1.8" fill="#d97706" opacity=".6"/><circle cx="18" cy="30" r="1.8" fill="#d97706" opacity=".6"/><circle cx="24" cy="30" r="1.8" fill="#d97706" opacity=".6"/><circle cx="30" cy="30" r="1.8" fill="#d97706" opacity=".3"/></svg><div class="dev-name">ONT</div></div>
+    <div class="dev-item"><svg width="40" height="40" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="7" fill="#f0f9ff" stroke="#0369a1" stroke-width="1"/><path d="M9,30 Q6,22 12,18 Q12,9 20,9 Q28,9 30,16 Q38,15 38,23 Q38,31 31,31 L11,31 Q7,31 9,30Z" fill="none" stroke="#0369a1" stroke-width="1.3" stroke-linejoin="round"/><circle cx="15" cy="26" r="1.5" fill="#0369a1" opacity=".7"/><circle cx="20" cy="26" r="1.5" fill="#0369a1" opacity=".7"/><circle cx="25" cy="26" r="1.5" fill="#0369a1" opacity=".7"/></svg><div class="dev-name">Nube</div></div>
+    <div class="dev-item"><svg width="40" height="40" viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="36" rx="7" fill="#fff7ed" stroke="#ea580c" stroke-width="1"/><circle cx="20" cy="25" r="5" fill="none" stroke="#ea580c" stroke-width="1.3"/><path d="M11,17 Q20,8 29,17" fill="none" stroke="#ea580c" stroke-width="1.5" stroke-linecap="round"/><path d="M7,13 Q20,2 33,13" fill="none" stroke="#ea580c" stroke-width="1.2" stroke-linecap="round" opacity=".5"/><line x1="20" y1="30" x2="20" y2="36" stroke="#ea580c" stroke-width="1.5"/><line x1="15" y1="36" x2="25" y2="36" stroke="#ea580c" stroke-width="1.5"/></svg><div class="dev-name">Access Point</div></div>
+  </div>
+  <div class="divider"></div>
+  <div class="sec-label">Tipo de enlace</div>
+  <div class="link-types">
+    <div class="ltype active"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="#2563eb" stroke-width="2"/></svg><span class="lname">Enlace UTP</span></div>
+    <div class="ltype"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="#d97706" stroke-width="2"/></svg><span class="lname">Fibra óptica</span></div>
+    <div class="ltype"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="#7c3aed" stroke-width="2" stroke-dasharray="5,3"/></svg><span class="lname">Microonda</span></div>
+    <div class="ltype"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="2,2"/></svg><span class="lname">Enlace lógico</span></div>
+  </div>
+  <div class="divider"></div>
+  <div class="sec-label">Origen</div>
+  <div class="legend">
+    <div class="lrow"><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="#0d9488"/></svg><span style="font-size:10px;color:#5a6180">Discovery</span></div>
+    <div class="lrow"><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="#2563eb"/></svg><span style="font-size:10px;color:#5a6180">Excel</span></div>
+    <div class="lrow"><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="#bcc2d4"/></svg><span style="font-size:10px;color:#5a6180">Manual</span></div>
+    <div class="lrow"><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="#f59e0b"/></svg><span style="font-size:10px;color:#5a6180">Sin CMDB</span></div>
+  </div>
+</div>
+
+<!-- CANVAS -->
+<div class="canvas">
+  <svg width="100%" height="100%" viewBox="0 0 520 460" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
+    <pattern id="d2" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#c8ccd8" opacity=".5"/></pattern>
+    <rect width="520" height="460" fill="url(#d2)"/>
+    <line x1="162" y1="114" x2="336" y2="114" stroke="#2563eb" stroke-width="2" opacity=".75"/>
+    <circle cx="249" cy="114" r="3.5" fill="#2563eb" opacity=".35"/>
+    <text x="249" y="109" text-anchor="middle" font-size="9" fill="#5a6180">3IE0R</text>
+    <line x1="162" y1="246" x2="162" y2="336" stroke="#d97706" stroke-width="2" opacity=".75"/>
+    <circle cx="162" cy="291" r="3.5" fill="#d97706" opacity=".35"/>
+    <line x1="150" y1="136" x2="154" y2="224" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="3,3" opacity=".75"/>
+    <!-- ROUT -->
+    <g><rect x="114" y="90" width="48" height="48" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/><circle cx="138" cy="114" r="10" fill="none" stroke="#2563eb" stroke-width="1.4"/><line x1="138" y1="104" x2="138" y2="98" stroke="#2563eb" stroke-width="1.4"/><polygon points="138,94 135.5,99 140.5,99" fill="#2563eb"/><line x1="138" y1="124" x2="138" y2="130" stroke="#2563eb" stroke-width="1.4"/><polygon points="138,134 135.5,129 140.5,129" fill="#2563eb"/><line x1="128" y1="114" x2="122" y2="114" stroke="#2563eb" stroke-width="1.4"/><polygon points="118,114 123,111.5 123,116.5" fill="#2563eb"/><line x1="148" y1="114" x2="154" y2="114" stroke="#2563eb" stroke-width="1.4"/><polygon points="158,114 153,111.5 153,116.5" fill="#2563eb"/><circle cx="138" cy="114" r="2.2" fill="#2563eb" opacity=".9"/><circle cx="158" cy="94" r="5.5" fill="#0d9488"/><text x="138" y="154" text-anchor="middle" font-size="9.5" font-weight="500" fill="#1a1e2e">ROUT-0032</text><text x="138" y="164" text-anchor="middle" font-size="8.5" fill="#5a6180">10.23.23.1</text></g>
+    <!-- SWT -->
+    <g><rect x="336" y="90" width="48" height="48" rx="8" fill="#f0fdfa" stroke="#0d9488" stroke-width="1.5"/><rect x="340" y="106" width="40" height="14" rx="2.5" fill="none" stroke="#0d9488" stroke-width="1.2"/><rect x="343" y="109" width="3" height="8" rx="1" fill="#0d9488" opacity=".6"/><rect x="348" y="109" width="3" height="8" rx="1" fill="#0d9488" opacity=".6"/><rect x="353" y="109" width="3" height="8" rx="1" fill="#0d9488" opacity=".6"/><rect x="358" y="109" width="3" height="8" rx="1" fill="#0d9488" opacity=".6"/><circle cx="370" cy="111" r="1.8" fill="#0d9488"/><circle cx="370" cy="117" r="1.8" fill="#0d9488" opacity=".4"/><line x1="346" y1="105" x2="346" y2="100" stroke="#0d9488" stroke-width="1.2"/><polygon points="346,97 343.5,102 348.5,102" fill="#0d9488"/><line x1="358" y1="121" x2="358" y2="126" stroke="#0d9488" stroke-width="1.2"/><polygon points="358,129 355.5,124 360.5,124" fill="#0d9488"/><circle cx="380" cy="94" r="5.5" fill="#2563eb"/><text x="360" y="154" text-anchor="middle" font-size="9.5" font-weight="500" fill="#1a1e2e">SWT-003</text><text x="360" y="164" text-anchor="middle" font-size="8.5" fill="#5a6180">10.34.32.123</text></g>
+    <!-- OLT -->
+    <g><rect x="138" y="222" width="48" height="48" rx="8" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/><rect x="153" y="226" width="18" height="38" rx="2.5" fill="none" stroke="#7c3aed" stroke-width="1.2"/><rect x="156" y="230" width="8" height="1.5" rx="1" fill="#7c3aed" opacity=".6"/><rect x="156" y="234" width="8" height="1.5" rx="1" fill="#7c3aed" opacity=".6"/><rect x="156" y="238" width="8" height="1.5" rx="1" fill="#7c3aed" opacity=".6"/><rect x="156" y="242" width="8" height="1.5" rx="1" fill="#7c3aed" opacity=".6"/><circle cx="162" cy="253" r="3.5" fill="#7c3aed" opacity=".2" stroke="#7c3aed" stroke-width="1"/><circle cx="162" cy="253" r="1.4" fill="#7c3aed"/><line x1="162" y1="219" x2="162" y2="222" stroke="#7c3aed" stroke-width="1.5"/><circle cx="182" cy="226" r="6" fill="#f59e0b"/><text x="182" y="230" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">!</text><text x="162" y="286" text-anchor="middle" font-size="9.5" font-weight="500" fill="#1a1e2e">DRD-09</text><text x="162" y="296" text-anchor="middle" font-size="8" fill="#d97706">⚠ Sin CMDB</text></g>
+    <!-- ONT -->
+    <g><rect x="138" y="334" width="48" height="48" rx="8" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/><rect x="146" y="349" width="32" height="17" rx="2.5" fill="none" stroke="#d97706" stroke-width="1.2"/><line x1="162" y1="337" x2="152" y2="349" stroke="#d97706" stroke-width="1.4"/><line x1="162" y1="337" x2="162" y2="349" stroke="#d97706" stroke-width="1.4"/><line x1="162" y1="337" x2="172" y2="349" stroke="#d97706" stroke-width="1.4"/><circle cx="162" cy="336" r="2.5" fill="#d97706" opacity=".9"/><circle cx="151" cy="358" r="1.8" fill="#d97706" opacity=".6"/><circle cx="157" cy="358" r="1.8" fill="#d97706" opacity=".6"/><circle cx="163" cy="358" r="1.8" fill="#d97706" opacity=".6"/><circle cx="169" cy="358" r="1.8" fill="#d97706" opacity=".3"/><circle cx="182" cy="338" r="5.5" fill="#0d9488"/><text x="162" y="398" text-anchor="middle" font-size="9.5" font-weight="500" fill="#1a1e2e">ONT-0032</text><text x="162" y="408" text-anchor="middle" font-size="8.5" fill="#5a6180">10.23.98.193</text></g>
+    <!-- FW -->
+    <g><rect x="336" y="222" width="48" height="48" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/><path d="M360,228 L373,233 L373,244 Q373,256 360,260 Q347,256 347,244 L347,233 Z" fill="none" stroke="#dc2626" stroke-width="1.3"/><line x1="347" y1="241" x2="373" y2="241" stroke="#dc2626" stroke-width="1" opacity=".4"/><line x1="360" y1="233" x2="360" y2="260" stroke="#dc2626" stroke-width="1" opacity=".3"/><circle cx="354" cy="249" r="2.5" fill="#dc2626" opacity=".4"/><circle cx="366" cy="249" r="2.5" fill="#0d9488" opacity=".4"/><circle cx="380" cy="226" r="5.5" fill="#2563eb"/><text x="360" y="286" text-anchor="middle" font-size="9.5" font-weight="500" fill="#1a1e2e">FRT-033</text></g>
+    <!-- minimap -->
+    <rect x="430" y="388" width="82" height="60" rx="5" fill="#fff" stroke="#d8dce8" stroke-width="1"/>
+    <text x="471" y="401" text-anchor="middle" font-size="8" fill="#9098b0">Mapa</text>
+    <circle cx="446" cy="420" r="3" fill="#eff6ff" stroke="#2563eb" stroke-width=".8"/><circle cx="474" cy="420" r="3" fill="#f0fdfa" stroke="#0d9488" stroke-width=".8"/><circle cx="450" cy="432" r="3" fill="#f5f3ff" stroke="#7c3aed" stroke-width=".8"/><circle cx="450" cy="441" r="3" fill="#fffbeb" stroke="#d97706" stroke-width=".8"/><circle cx="472" cy="432" r="3" fill="#fef2f2" stroke="#dc2626" stroke-width=".8"/>
+    <line x1="446" y1="420" x2="474" y2="420" stroke="#2563eb" stroke-width=".8" opacity=".5"/>
+    <line x1="450" y1="432" x2="450" y2="441" stroke="#d97706" stroke-width=".8" opacity=".5"/>
+  </svg>
+
+  <div class="mc">
+    <div class="cb">+</div><div class="cb">−</div><div class="cb" style="font-size:10px">⟳</div>
+  </div>
+
+  <!-- FAB — exactamente igual que el oscuro -->
+  <div class="fab-area">
+    <div class="container">
+      <div class="fab-main-btn">✕</div>
+      <div class="fab-it" id="i0" style="background:#2563eb">💾<small>Guardar</small></div>
+      <div class="fab-it" id="i1" style="background:#dc2626">📄<small>PDF</small></div>
+      <div class="fab-it" id="i2" style="background:#16a34a">📊<small>Excel</small></div>
+      <div class="fab-it" id="i3" style="background:#7c3aed">⛶<small>Pantalla</small></div>
+    </div>
+  </div>
+</div>
+
+<!-- PROPERTIES -->
+<div class="props">
+  <div class="ph"><span style="font-size:11px;font-weight:500;color:#1a1e2e">Propiedades</span><span style="color:#9098b0;font-size:16px">×</span></div>
+  <div class="cok">✓ En CMDB · Verificado</div>
+  <div class="ob">🟢 Origen: Discovery</div>
+  <div class="fg">
+    <div class="fl">Nombre</div><div class="fi">ROUT-0032</div>
+    <div class="fl">Hostname</div><div class="fi">ROUT-0032</div>
+    <div class="fl">Modelo</div><div class="fi">KIDUI-32</div>
+    <div class="fl">IP / Dirección</div><div class="fi">10.23.23.1</div>
+    <div class="fl">Serial</div><div class="fi">SN-20230415-A</div>
+    <div class="fl">Fabricante</div><div class="fi">Cisco</div>
+  </div>
+  <div class="cl">Campos personalizados</div>
+  <div class="crow"><div class="ck">Rack</div><div class="cv">A-03</div></div>
+  <div class="crow"><div class="ck">VLAN</div><div class="cv">100</div></div>
+  <div class="af">+ Agregar campo</div>
+</div>
+
+</div>
+</div>
+
+<script>
+const fabCX = 280 - 26;
+const fabCY = 280 - 26;
+const R = 100;
+const angles = [90, 120, 150, 180];
+angles.forEach((deg, i) => {
+  const rad = deg * Math.PI / 180;
+  const dx =  Math.cos(rad) * R;
+  const dy = -Math.sin(rad) * R;
+  const el = document.getElementById('i' + i);
+  el.style.left = (fabCX + dx - 23) + 'px';
+  el.style.top  = (fabCY + dy - 23) + 'px';
+});
+</script>
+</body>
+</html>

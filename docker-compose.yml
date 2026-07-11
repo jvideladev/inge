@@ -1,0 +1,15 @@
+services:
+  ingenierias-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ingenierias-app
+    ports:
+      - "6001:6001"
+    env_file:
+      - .env.docker
+    environment:
+      NODE_ENV: production
+      PORT: 6001
+      HOSTNAME: 0.0.0.0
+    restart: unless-stopped
