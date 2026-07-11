@@ -1,0 +1,47 @@
+/* Carga después de reactflow/dist/style.css */
+/* Solo cursores nativos del sistema — formas correctas garantizadas */
+
+/* Modo normal */
+.react-flow:not(.rf-link-drag) .react-flow__node:not(.dragging),
+.react-flow:not(.rf-link-drag) .react-flow__node:not(.dragging) .rf-node-body,
+.react-flow:not(.rf-link-drag) .react-flow__edge,
+.react-flow:not(.rf-link-drag) .react-flow__edge .react-flow__edge-path,
+.react-flow:not(.rf-link-drag) .react-flow__edge .react-flow__edge-interaction {
+  cursor: pointer !important;
+}
+
+.react-flow:not(.rf-link-drag) .react-flow__node.dragging {
+  cursor: grabbing !important;
+}
+
+.react-flow:not(.rf-link-drag) .react-flow__edgeupdater {
+  cursor: move !important;
+}
+
+.react-flow:not(.rf-link-drag) .react-flow__handle.connectionindicator {
+  cursor: crosshair !important;
+}
+
+/* Modo drag de enlace / reconexión */
+.react-flow.rf-link-drag .react-flow__pane,
+.react-flow.rf-link-drag .react-flow__pane.dragging,
+.react-flow.rf-link-drag .react-flow__connectionline,
+.react-flow.rf-link-drag .react-flow__edgeupdater,
+.react-flow.rf-link-drag .react-flow__node,
+.react-flow.rf-link-drag .react-flow__node .rf-node-body,
+.react-flow.rf-link-drag .react-flow__edge,
+.react-flow.rf-link-drag .react-flow__handle.connectionindicator {
+  cursor: grab !important;
+}
+
+.react-flow.rf-link-drag .react-flow__handle.connectionindicator {
+  width: 8px !important;
+  height: 8px !important;
+  min-width: 8px !important;
+  min-height: 8px !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5) !important;
+}
+
+.react-flow.rf-link-drag .react-flow__node .rf-node-body {
+  pointer-events: none;
+}

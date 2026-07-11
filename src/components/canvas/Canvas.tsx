@@ -1,12 +1,12 @@
 'use client'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import ReactFlow, {
-  Controls, ControlButton, Panel, ConnectionMode,
+  Controls, ControlButton, Panel,
   addEdge, useNodesState, useEdgesState,
   type Connection, type Node, type Edge,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
-import './canvas-handles.css'
+import './canvas-cursor.css'
 
 import DispositivoNode from './DispositivoNode'
 import EnlaceEdge     from './EnlaceEdge'
@@ -141,7 +141,7 @@ interface Props {
 
 // ── Optimizar conexiones ──────────────────────────────────────────────────────
 const SRC_HANDLES = ['top', 'right', 'bottom', 'left'] as const
-const TGT_HANDLES = ['top', 'right', 'bottom', 'left'] as const
+const TGT_HANDLES = ['top-t', 'right-t', 'bottom-t', 'left-t'] as const
 const DEFAULT_W = 64, DEFAULT_H = 82
 
 function handlePos(node: Node, h: string): { x: number; y: number } {
@@ -164,7 +164,7 @@ function optimizarConexiones(nodes: Node[], edges: Edge[]): Edge[] {
     const tgt = nodeMap.get(edge.target)
     if (!src || !tgt) return edge
 
-    let bestSH: string = 'right', bestTH: string = 'left', bestD = Infinity
+    let bestSH: string = 'right', bestTH: string = 'left-t', bestD = Infinity
     for (const sh of SRC_HANDLES) {
       for (const th of TGT_HANDLES) {
         const d = dist(handlePos(src, sh), handlePos(tgt, th))
@@ -654,7 +654,6 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
           onConnectStart={() => setIsLinkDrag(true)}
           onConnectEnd={() => setIsLinkDrag(false)}
           isValidConnection={isValidConnection}
-          connectionMode={ConnectionMode.Loose}
           onEdgeUpdateStart={onEdgeUpdateStart}
           onEdgeUpdate={onEdgeUpdate}
           onEdgeUpdateEnd={onEdgeUpdateEnd}
@@ -669,8 +668,8 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
           minZoom={0.3}
           maxZoom={2.1}
           deleteKeyCode={null}
-          connectionRadius={24}
-          edgeUpdaterRadius={24}
+          connectionRadius={40}
+          edgeUpdaterRadius={12}
           className={`touch-none${isLinkDrag ? ' rf-link-drag' : ''}`}
           proOptions={{ hideAttribution: true }}
           onMove={onMove}

@@ -6,9 +6,8 @@ import { ORIGEN_COLOR } from '@/lib/utils'
 import { useAppStore } from '@/store/app.store'
 import type { DispositivoData } from '@/types'
 
-// Puntos de conexión compactos (6px)
-const HANDLE_STYLE = { width: 6, height: 6, minWidth: 6, minHeight: 6 } as const
-const HANDLE_CLS = '!bg-gray-400 dark:!bg-gray-500 !border-2 !border-white dark:!border-gray-900 !rounded-full !z-10'
+// 6px handles — mismo tamaño que el default de ReactFlow para que el centrado sea exacto
+const HANDLE_CLS = '!bg-gray-400 dark:!bg-gray-500 !w-1.5 !h-1.5 !border-none !rounded-full'
 
 function DispositivoNode({ data, selected }: NodeProps<DispositivoData>) {
   const temaOscuro = useAppStore((s) => s.temaOscuro)
@@ -28,13 +27,18 @@ function DispositivoNode({ data, selected }: NodeProps<DispositivoData>) {
         borderRadius: '10px',
       } : undefined}
     >
-      {/* Puntos de conexión — un handle visible por lado (inicio y fin del enlace) */}
-      <Handle type="source" position={Position.Top}    id="top"    style={HANDLE_STYLE} className={HANDLE_CLS} />
-      <Handle type="source" position={Position.Right}  id="right"  style={HANDLE_STYLE} className={HANDLE_CLS} />
-      <Handle type="source" position={Position.Bottom} id="bottom" style={HANDLE_STYLE} className={HANDLE_CLS} />
-      <Handle type="source" position={Position.Left}   id="left"   style={HANDLE_STYLE} className={HANDLE_CLS} />
+      {/* Handles — source (visible) */}
+      <Handle type="source" position={Position.Top}    id="top"    className={HANDLE_CLS} />
+      <Handle type="source" position={Position.Right}  id="right"  className={HANDLE_CLS} />
+      <Handle type="source" position={Position.Bottom} id="bottom" className={HANDLE_CLS} />
+      <Handle type="source" position={Position.Left}   id="left"   className={HANDLE_CLS} />
+      {/* Handles — target: invisibles pero con área amplia para facilitar conexiones/reconexiones */}
+      <Handle type="target" position={Position.Top}    id="top-t"    className="opacity-0 !w-5 !h-5 !border-none" />
+      <Handle type="target" position={Position.Right}  id="right-t"  className="opacity-0 !w-5 !h-5 !border-none" />
+      <Handle type="target" position={Position.Bottom} id="bottom-t" className="opacity-0 !w-5 !h-5 !border-none" />
+      <Handle type="target" position={Position.Left}   id="left-t"   className="opacity-0 !w-5 !h-5 !border-none" />
 
-      {/* Ícono — pointer-events off durante drag de enlace para no bloquear handles */}
+      {/* Ícono */}
       <div className="relative rf-node-body">
         <DeviceIcon tipo={data.tipo} size={52} color={iconColor} strokeColor={iconStrokeColor} />
 
@@ -63,12 +67,12 @@ function DispositivoNode({ data, selected }: NodeProps<DispositivoData>) {
         />
       </div>
 
-      {/* Label — no captura eventos durante drag de enlace */}
-      <span className="rf-node-body text-[8px] font-semibold text-gray-800 dark:text-gray-100 leading-tight text-center max-w-[80px] truncate">
+      {/* Label */}
+      <span className="text-[8px] font-semibold text-gray-800 dark:text-gray-100 leading-tight text-center max-w-[80px] truncate">
         {data.label}
       </span>
       {data.metadatos.ip && (
-        <span className="rf-node-body text-[7px] text-gray-500 dark:text-gray-400 leading-tight">
+        <span className="text-[7px] text-gray-500 dark:text-gray-400 leading-tight">
           {data.metadatos.ip}
         </span>
       )}

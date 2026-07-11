@@ -2,8 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* React Flow overrides */
-.react-flow__node { cursor: default; }
+/* React Flow overrides — cursores en canvas-cursor.css */
+.react-flow__handle { width: 8px; height: 8px; border-radius: 50%; border: 2px solid white; }
 .react-flow__edge-path { stroke-width: 2; }
 .react-flow__controls { box-shadow: none; }
 .react-flow__controls-button {
