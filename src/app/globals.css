@@ -4,24 +4,6 @@
 
 /* React Flow overrides */
 .react-flow__node { cursor: default; }
-.react-flow__handle { width: 8px; height: 8px; border-radius: 50%; border: 2px solid white; }
-.react-flow__handle.connectionindicator {
-  z-index: 30;
-  width: 14px !important;
-  height: 14px !important;
-  cursor: crosshair;
-}
-/* Durante creación/reconexión de enlace: el cuerpo del nodo no compite con los handles */
-.react-flow.rf-link-drag .react-flow__node { cursor: crosshair; }
-.react-flow.rf-link-drag .react-flow__node .rf-node-body {
-  pointer-events: none;
-}
-.react-flow.rf-link-drag .react-flow__handle.connectionindicator {
-  z-index: 40;
-  width: 18px !important;
-  height: 18px !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
-}
 .react-flow__edge-path { stroke-width: 2; }
 .react-flow__controls { box-shadow: none; }
 .react-flow__controls-button {

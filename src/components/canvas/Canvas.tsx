@@ -6,6 +6,7 @@ import ReactFlow, {
   type Connection, type Node, type Edge,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
+import './canvas-handles.css'
 
 import DispositivoNode from './DispositivoNode'
 import EnlaceEdge     from './EnlaceEdge'
@@ -668,8 +669,8 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
           minZoom={0.3}
           maxZoom={2.1}
           deleteKeyCode={null}
-          connectionRadius={40}
-          edgeUpdaterRadius={40}
+          connectionRadius={24}
+          edgeUpdaterRadius={24}
           className={`touch-none${isLinkDrag ? ' rf-link-drag' : ''}`}
           proOptions={{ hideAttribution: true }}
           onMove={onMove}

@@ -1,0 +1,24 @@
+/* Carga después de reactflow/dist/style.css — puntos de conexión */
+
+.react-flow__handle {
+  width: 6px !important;
+  height: 6px !important;
+  min-width: 6px !important;
+  min-height: 6px !important;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+/* Modo drag: sin agrandar ni halo azul al pasar cerca */
+.react-flow.rf-link-drag .react-flow__handle.connectionindicator {
+  width: 6px !important;
+  height: 6px !important;
+  min-width: 6px !important;
+  min-height: 6px !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.react-flow.rf-link-drag .react-flow__node .rf-node-body {
+  pointer-events: none;
+}
