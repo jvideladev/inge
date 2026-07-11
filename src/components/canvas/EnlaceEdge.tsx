@@ -39,15 +39,7 @@ function EnlaceEdge({
         >
           {/* Badge principal: origen + CMDB */}
           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/95 dark:bg-[#161b27]/95 border border-gray-200 dark:border-[#2a3349] shadow-sm">
-            {/* Dot de origen */}
-            <span
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: origenColor }}
-              title={`Origen: ${data?.origen ?? '—'}`}
-            />
-            {/* Separador */}
-            <span className="w-px h-2.5 bg-gray-200 dark:bg-[#2a3349] flex-shrink-0" />
-            {/* Checkmark CMDB */}
+            {/* Checkmark CMDB — izquierda (igual que en dispositivos) */}
             <svg width="8" height="8" viewBox="0 0 14 14" className="flex-shrink-0" role="img" aria-label={cmdbTitle}>
               <title>{cmdbTitle}</title>
               <polyline
@@ -59,6 +51,14 @@ function EnlaceEdge({
                 strokeLinejoin="round"
               />
             </svg>
+            {/* Separador */}
+            <span className="w-px h-2.5 bg-gray-200 dark:bg-[#2a3349] flex-shrink-0" />
+            {/* Dot de origen — derecha (igual que en dispositivos) */}
+            <span
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: origenColor }}
+              title={`Origen: ${data?.origen ?? '—'}`}
+            />
           </div>
 
           {/* Número de enlace debajo del badge */}
