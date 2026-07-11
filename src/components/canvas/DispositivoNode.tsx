@@ -6,8 +6,8 @@ import { ORIGEN_COLOR } from '@/lib/utils'
 import { useAppStore } from '@/store/app.store'
 import type { DispositivoData } from '@/types'
 
-// 6px handles — mismo tamaño que el default de ReactFlow para que el centrado sea exacto
-const HANDLE_CLS = '!bg-gray-400 dark:!bg-gray-500 !w-1.5 !h-1.5 !border-none !rounded-full'
+// Un solo handle por lado — evita que source/target superpuestos compitan al soltar
+const HANDLE_CLS = '!bg-gray-400 dark:!bg-gray-500 !w-2 !h-2 !border-2 !border-white dark:!border-gray-900 !rounded-full !z-10'
 
 function DispositivoNode({ data, selected }: NodeProps<DispositivoData>) {
   const temaOscuro = useAppStore((s) => s.temaOscuro)
@@ -27,19 +27,14 @@ function DispositivoNode({ data, selected }: NodeProps<DispositivoData>) {
         borderRadius: '10px',
       } : undefined}
     >
-      {/* Handles — source (visible) */}
+      {/* Puntos de conexión — un handle visible por lado (inicio y fin del enlace) */}
       <Handle type="source" position={Position.Top}    id="top"    className={HANDLE_CLS} />
       <Handle type="source" position={Position.Right}  id="right"  className={HANDLE_CLS} />
       <Handle type="source" position={Position.Bottom} id="bottom" className={HANDLE_CLS} />
       <Handle type="source" position={Position.Left}   id="left"   className={HANDLE_CLS} />
-      {/* Handles — target: invisibles pero con área amplia para facilitar conexiones/reconexiones */}
-      <Handle type="target" position={Position.Top}    id="top-t"    className="opacity-0 !w-5 !h-5 !border-none" />
-      <Handle type="target" position={Position.Right}  id="right-t"  className="opacity-0 !w-5 !h-5 !border-none" />
-      <Handle type="target" position={Position.Bottom} id="bottom-t" className="opacity-0 !w-5 !h-5 !border-none" />
-      <Handle type="target" position={Position.Left}   id="left-t"   className="opacity-0 !w-5 !h-5 !border-none" />
 
-      {/* Ícono */}
-      <div className="relative">
+      {/* Ícono — pointer-events off durante drag de enlace para no bloquear handles */}
+      <div className="relative rf-node-body">
         <DeviceIcon tipo={data.tipo} size={52} color={iconColor} strokeColor={iconStrokeColor} />
 
         {/* Tilde CMDB — top-left */}

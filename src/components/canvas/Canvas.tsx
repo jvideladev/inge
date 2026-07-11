@@ -1,7 +1,7 @@
 'use client'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import ReactFlow, {
-  Controls, ControlButton, Panel,
+  Controls, ControlButton, Panel, ConnectionMode,
   addEdge, useNodesState, useEdgesState,
   type Connection, type Node, type Edge,
 } from 'reactflow'
@@ -140,7 +140,7 @@ interface Props {
 
 // ── Optimizar conexiones ──────────────────────────────────────────────────────
 const SRC_HANDLES = ['top', 'right', 'bottom', 'left'] as const
-const TGT_HANDLES = ['top-t', 'right-t', 'bottom-t', 'left-t'] as const
+const TGT_HANDLES = ['top', 'right', 'bottom', 'left'] as const
 const DEFAULT_W = 64, DEFAULT_H = 82
 
 function handlePos(node: Node, h: string): { x: number; y: number } {
@@ -163,7 +163,7 @@ function optimizarConexiones(nodes: Node[], edges: Edge[]): Edge[] {
     const tgt = nodeMap.get(edge.target)
     if (!src || !tgt) return edge
 
-    let bestSH: string = 'right', bestTH: string = 'left-t', bestD = Infinity
+    let bestSH: string = 'right', bestTH: string = 'left', bestD = Infinity
     for (const sh of SRC_HANDLES) {
       for (const th of TGT_HANDLES) {
         const d = dist(handlePos(src, sh), handlePos(tgt, th))
@@ -270,6 +270,7 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
   const [rfInstance, setRfInstance] = useState<any>(null)
   const [minimapOpen, setMinimapOpen]    = useState(true)
   const [locked, setLocked]              = useState(false)
+  const [isLinkDrag, setIsLinkDrag]      = useState(false)
   const edgeUpdateSuccessful = useRef(true)
 
   // Track changes
@@ -383,6 +384,7 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
   // Reconnect edge to different handles by dragging the endpoint
   const onEdgeUpdateStart = useCallback(() => {
     edgeUpdateSuccessful.current = false
+    setIsLinkDrag(true)
   }, [])
 
   const onEdgeUpdate = useCallback((oldEdge: Edge, newConnection: Connection) => {
@@ -406,6 +408,7 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
   }, [setEdges, marcarCambios])
 
   const onEdgeUpdateEnd = useCallback((_: MouseEvent | TouchEvent, edge: Edge) => {
+    setIsLinkDrag(false)
     if (!edgeUpdateSuccessful.current) {
       // Drop fallido o self-loop: restaurar el enlace si ReactFlow lo quitó
       setEdges(es => es.some(e => e.id === edge.id) ? es : [...es, edge])
@@ -647,7 +650,10 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
+          onConnectStart={() => setIsLinkDrag(true)}
+          onConnectEnd={() => setIsLinkDrag(false)}
           isValidConnection={isValidConnection}
+          connectionMode={ConnectionMode.Loose}
           onEdgeUpdateStart={onEdgeUpdateStart}
           onEdgeUpdate={onEdgeUpdate}
           onEdgeUpdateEnd={onEdgeUpdateEnd}
@@ -663,8 +669,8 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
           maxZoom={2.1}
           deleteKeyCode={null}
           connectionRadius={40}
-          edgeUpdaterRadius={12}
-          className="touch-none"
+          edgeUpdaterRadius={40}
+          className={`touch-none${isLinkDrag ? ' rf-link-drag' : ''}`}
           proOptions={{ hideAttribution: true }}
           onMove={onMove}
           onMoveEnd={onMoveEnd}
