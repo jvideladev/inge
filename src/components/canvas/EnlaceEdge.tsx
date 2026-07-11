@@ -2,6 +2,7 @@
 import { memo } from 'react'
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from 'reactflow'
 import { ENLACE_STYLE, ORIGEN_COLOR } from '@/lib/utils'
+import { useAppStore } from '@/store/app.store'
 import type { EnlaceData } from '@/types'
 
 function EnlaceEdge({
@@ -9,6 +10,7 @@ function EnlaceEdge({
   sourcePosition, targetPosition,
   data, selected
 }: EdgeProps<EnlaceData>) {
+  const temaOscuro = useAppStore((s) => s.temaOscuro)
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition
   })
@@ -25,8 +27,15 @@ function EnlaceEdge({
         path={edgePath}
         style={{
           ...style,
-          opacity: selected ? 1 : 0.8,
-          filter: selected ? 'drop-shadow(0 0 3px rgba(255,255,255,0.4))' : undefined
+          ...(selected
+            ? {
+                opacity: 1,
+                strokeWidth: style.strokeWidth + 0.5,
+                filter: temaOscuro
+                  ? 'drop-shadow(0 0 3px rgba(255,255,255,0.5)) drop-shadow(0 0 8px rgba(255,255,255,0.25))'
+                  : 'drop-shadow(0 0 2px rgba(59,130,246,0.95)) drop-shadow(0 0 6px rgba(59,130,246,0.55))',
+              }
+            : { opacity: 0.8 }),
         }}
       />
       <EdgeLabelRenderer>
@@ -38,7 +47,11 @@ function EnlaceEdge({
           }}
         >
           {/* Badge principal: origen + CMDB */}
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/95 dark:bg-[#161b27]/95 border border-gray-200 dark:border-[#2a3349] shadow-sm">
+          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/95 dark:bg-[#161b27]/95 border shadow-sm ${
+            selected
+              ? 'border-blue-400 dark:border-[#4a8fff] ring-2 ring-blue-200/80 dark:ring-[#4a8fff]/30'
+              : 'border-gray-200 dark:border-[#2a3349]'
+          }`}>
             {/* Checkmark CMDB — izquierda (igual que en dispositivos) */}
             <svg width="8" height="8" viewBox="0 0 14 14" className="flex-shrink-0" role="img" aria-label={cmdbTitle}>
               <title>{cmdbTitle}</title>
