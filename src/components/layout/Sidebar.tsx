@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { DeviceIcon, LIGHT_COLORS } from '@/components/ui/DeviceIcons'
 import { ENLACE_STYLE } from '@/lib/utils'
@@ -35,18 +35,71 @@ interface Props {
 
 function AutoAjusteButton({ onAutoLayout }: { onAutoLayout: (modo: LayoutModo) => void }) {
   const temaOscuro = useAppStore((s) => s.temaOscuro)
-  const [open, setOpen]   = useState(false)
-  const [pos,  setPos]    = useState({ top: 0, left: 0 })
+  const [open, setOpen]       = useState(false)
+  const [pos, setPos]           = useState({ top: 0, left: 0 })
+  const [flyoutReady, setFlyoutReady] = useState(false)
   const btnRef    = useRef<HTMLButtonElement>(null)
   const flyoutRef = useRef<HTMLDivElement>(null)
+
+  const updateFlyoutPosition = () => {
+    const btn = btnRef.current
+    const flyout = flyoutRef.current
+    if (!btn || !flyout) return
+
+    const btnRect = btn.getBoundingClientRect()
+    const flyoutH = flyout.offsetHeight
+    const flyoutW = flyout.offsetWidth
+    const pad = 8
+    const gap = 6
+
+    let left = btnRect.right + gap
+    let top = btnRect.top
+
+    const spaceBelow = window.innerHeight - btnRect.top - pad
+    const spaceAbove = btnRect.bottom - pad
+
+    // Si no alcanza abajo, abrir hacia arriba (alineado al borde inferior del botón)
+    if (flyoutH > spaceBelow && flyoutH <= spaceAbove) {
+      top = btnRect.bottom - flyoutH
+    } else if (flyoutH > spaceBelow) {
+      top = Math.max(pad, window.innerHeight - pad - flyoutH)
+    }
+
+    if (left + flyoutW > window.innerWidth - pad) {
+      left = Math.max(pad, btnRect.left - flyoutW - gap)
+    }
+
+    setPos({ top, left })
+    setFlyoutReady(true)
+  }
 
   const handleClick = () => {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
+      setFlyoutReady(false)
       setPos({ top: r.top, left: r.right + 6 })
     }
     setOpen(o => !o)
   }
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setFlyoutReady(false)
+      return
+    }
+    updateFlyoutPosition()
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onReposition = () => updateFlyoutPosition()
+    window.addEventListener('resize', onReposition)
+    window.addEventListener('scroll', onReposition, true)
+    return () => {
+      window.removeEventListener('resize', onReposition)
+      window.removeEventListener('scroll', onReposition, true)
+    }
+  }, [open])
 
   // Cierra al hacer clic fuera del botón y del flyout
   useEffect(() => {
@@ -95,7 +148,11 @@ function AutoAjusteButton({ onAutoLayout }: { onAutoLayout: (modo: LayoutModo) =
               border border-[#BFD0E8] dark:border-[#2a3349]
               bg-[#EDF2FA] dark:bg-[#161b27]
             "
-            style={{ top: pos.top, left: pos.left }}
+            style={{
+              top: pos.top,
+              left: pos.left,
+              visibility: flyoutReady ? 'visible' : 'hidden',
+            }}
           >
             {LAYOUTS.map(({ modo, label, icon, title }, i) => (
               <button
