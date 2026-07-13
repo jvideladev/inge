@@ -405,7 +405,8 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
     if (!newConnection.source || !newConnection.target) return
     if (newConnection.source === newConnection.target) return   // no self-loops
     edgeUpdateSuccessful.current = true
-    // Update in-place: preserve edge ID and all data, only change connection endpoints
+    // Update in-place: preserve edge ID and all data, only change connection endpoints.
+    // selected: false → quita el glow de selección que React Flow deja tras reconectar.
     setEdges(es => es.map(e =>
       e.id !== oldEdge.id ? e : {
         ...e,
@@ -413,6 +414,7 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
         target:       newConnection.target!,
         sourceHandle: newConnection.sourceHandle ?? null,
         targetHandle: newConnection.targetHandle ?? null,
+        selected:     false,
       }
     ))
     setSelectedItem(prev =>
