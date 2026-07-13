@@ -64,14 +64,21 @@ function DispositivoNode({ id, data, selected }: NodeProps<DispositivoData>) {
           title={data.registradoCMDB ? 'Registrado en CMDB' : 'No registrado en CMDB'}
         >
           <svg width="11" height="11" viewBox="0 0 14 14">
-            <polyline
-              points="1,8 5,12 13,2"
-              stroke={data.registradoCMDB ? '#0D9488' : '#9098B0'}
-              strokeWidth="2.5"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            {data.registradoCMDB ? (
+              <polyline
+                points="1,8 5,12 13,2"
+                stroke="#0D9488"
+                strokeWidth="2.5"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ) : (
+              <>
+                <line x1="3" y1="3" x2="11" y2="11" stroke="#9098B0" strokeWidth="2.5" strokeLinecap="round" />
+                <line x1="11" y1="3" x2="3" y2="11" stroke="#9098B0" strokeWidth="2.5" strokeLinecap="round" />
+              </>
+            )}
           </svg>
         </span>
 

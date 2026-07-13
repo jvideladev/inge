@@ -221,7 +221,7 @@ function NodeProps({ node, onUpdateNode }: { node: Node; onUpdateNode: (id: stri
               <CmdbCheck /> Registrado en CMDB
             </div>
           ) : (
-            <div className="flex items-center gap-2 bg-white dark:bg-gray-800/40 border border-[#BFD0E8] dark:border-gray-700 text-gray-500 rounded-md px-2.5 py-2 text-sm">
+            <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 rounded-md px-2.5 py-2 text-sm">
               <CmdbX /> No registrado en CMDB
             </div>
           )}
@@ -382,7 +382,7 @@ function EdgeProps({ edge, onUpdateEdge }: { edge: Edge; onUpdateEdge: (id: stri
               <CmdbCheck /> Registrado en CMDB
             </div>
           ) : (
-            <div className="flex items-center gap-2 bg-white dark:bg-gray-800/40 border border-[#BFD0E8] dark:border-gray-700 text-gray-500 rounded-md px-2.5 py-2 text-sm">
+            <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 rounded-md px-2.5 py-2 text-sm">
               <CmdbX /> No registrado en CMDB
             </div>
           )}

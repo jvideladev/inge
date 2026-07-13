@@ -139,7 +139,8 @@ function LeyendasPanel() {
         </div>
         <div className="flex items-center gap-2 py-1">
           <svg width="13" height="13" viewBox="0 0 14 14" className="flex-shrink-0">
-            <polyline points="1,8 5,12 13,2" stroke="#9098B0" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+            <line x1="3" y1="3" x2="11" y2="11" stroke="#9098B0" strokeWidth="2.2" strokeLinecap="round"/>
+            <line x1="11" y1="3" x2="3" y2="11" stroke="#9098B0" strokeWidth="2.2" strokeLinecap="round"/>
           </svg>
           <span className="text-sm text-gray-600 dark:text-gray-300">Sin CMDB</span>
         </div>

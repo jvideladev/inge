@@ -58,14 +58,21 @@ function EnlaceEdge({
             {/* Checkmark CMDB — izquierda (igual que en dispositivos) */}
             <svg width="8" height="8" viewBox="0 0 14 14" className="flex-shrink-0" role="img" aria-label={cmdbTitle}>
               <title>{cmdbTitle}</title>
-              <polyline
-                points="1,8 5,12 13,2"
-                stroke={cmdbColor}
-                strokeWidth="2.5"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              {data?.registradoCMDB ? (
+                <polyline
+                  points="1,8 5,12 13,2"
+                  stroke={cmdbColor}
+                  strokeWidth="2.5"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ) : (
+                <>
+                  <line x1="3" y1="3" x2="11" y2="11" stroke={cmdbColor} strokeWidth="2.5" strokeLinecap="round" />
+                  <line x1="11" y1="3" x2="3" y2="11" stroke={cmdbColor} strokeWidth="2.5" strokeLinecap="round" />
+                </>
+              )}
             </svg>
             {/* Separador */}
             <span className="w-px h-2.5 bg-gray-200 dark:bg-[#2a3349] flex-shrink-0" />
