@@ -1,9 +1,14 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Ingenieria, Usuario, EstadoIngenieria, PerfilSistema } from '@/types'
 import { INGENIERIAS_MOCK, PERFILES_MOCK, USUARIOS_MOCK } from '@/data/mock'
 import { ingenieriasApi, cmdbApi } from '@/lib/api'
 
 const MOCK_MODE = true
+
+// IDs de las ingenierías de ejemplo: son solo para mostrar y NO deben
+// persistir cambios. Solo se guardan las ingenierías que crea el usuario.
+const MOCK_ING_IDS = new Set(INGENIERIAS_MOCK.map((i) => i.id))
 
 interface AppStore {
   // Auth
@@ -44,7 +49,7 @@ interface AppStore {
   cambiarEstado: (id: string, estado: EstadoIngenieria) => Promise<void>
 }
 
-export const useAppStore = create<AppStore>((set, get) => ({
+export const useAppStore = create<AppStore>()(persist((set, get) => ({
 
   // ── Auth ─────────────────────────────────────────────────────────────
   usuario:    USUARIOS_MOCK[0],
@@ -167,5 +172,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
       await ingenieriasApi.cambiarEstado(id, estado)
     }
     get().updateIngenieria(id, { estado })
+  },
+}), {
+  name: 'ingenierias-store',
+  version: 1,
+  storage: createJSONStorage(() => localStorage),
+  // Solo persistimos las ingenierías creadas por el usuario (no los mocks) y
+  // el tema. Los mocks son de solo demostración y no guardan cambios.
+  partialize: (s) => ({
+    ingenierias: s.ingenierias.filter((i) => !MOCK_ING_IDS.has(i.id)),
+    temaOscuro:  s.temaOscuro,
+  }),
+  // Al rehidratar: siempre partimos de los mocks frescos y les sumamos las
+  // ingenierías del usuario guardadas en localStorage.
+  merge: (persisted, current) => {
+    const p = (persisted ?? {}) as Partial<AppStore>
+    const delUsuario = (p.ingenierias ?? []).filter((i) => !MOCK_ING_IDS.has(i.id))
+    return {
+      ...current,
+      ...p,
+      ingenierias: [...delUsuario, ...INGENIERIAS_MOCK],
+    }
   },
 }))
