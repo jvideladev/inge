@@ -4,28 +4,27 @@ import { useState } from 'react'
 interface FabAction {
   icon:    string
   label:   string
+  title:   string
   color:   string
   onClick: () => void
 }
 
 interface Props {
-  onGuardar:    () => void
   onExportPDF:  () => void
   onExportExcel:() => void
   onFullscreen: () => void
 }
 
-export function FabMenu({ onGuardar, onExportPDF, onExportExcel, onFullscreen }: Props) {
+export function FabMenu({ onExportPDF, onExportExcel, onFullscreen }: Props) {
   const [open, setOpen] = useState(false)
 
   const actions: FabAction[] = [
-    { icon: '💾', label: 'Guardar',  color: '#2563EB', onClick: onGuardar      },
-    { icon: '📄', label: 'PDF',      color: '#DC2626', onClick: onExportPDF    },
-    { icon: '📊', label: 'Excel',    color: '#16A34A', onClick: onExportExcel  },
-    { icon: '⛶',  label: 'Pantalla', color: '#7C3AED', onClick: onFullscreen   },
+    { icon: '📄', label: 'PDF',      title: 'Exportar a PDF',   color: '#DC2626', onClick: onExportPDF    },
+    { icon: '📊', label: 'Excel',    title: 'Exportar a Excel', color: '#16A34A', onClick: onExportExcel  },
+    { icon: '⛶',  label: 'Pantalla', title: 'Pantalla completa', color: '#7C3AED', onClick: onFullscreen   },
   ]
 
-  const angles = [90, 120, 150, 180]
+  const angles = [90, 135, 180]
   const R   = 96
   const SZ  = 240
 
@@ -60,7 +59,7 @@ export function FabMenu({ onGuardar, onExportPDF, onExportExcel, onFullscreen }:
           <button
             key={action.label}
             onClick={() => { action.onClick(); setOpen(false) }}
-            title={action.label}
+            title={action.title}
             className="absolute w-12 h-12 rounded-full flex flex-col items-center justify-center text-white shadow-lg"
             style={{
               left: x,

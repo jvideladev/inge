@@ -1,8 +1,55 @@
 'use client'
+import { useCallback, useRef, useState } from 'react'
 import { useAppStore } from '@/store/app.store'
 import { estadoColor } from '@/lib/utils'
 import type { EstadoIngenieria } from '@/types'
 import { UserMenu } from '@/components/layout/UserMenu'
+
+const iconProps = {
+  width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none',
+  stroke: 'currentColor', strokeWidth: 2,
+  strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+}
+
+const SaveIcon = () => (
+  <svg {...iconProps}>
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17 21 17 13 7 13 7 21" />
+    <polyline points="7 3 7 8 15 8" />
+  </svg>
+)
+
+const BackIcon = () => (
+  <svg {...iconProps}>
+    <line x1="19" y1="12" x2="5" y2="12" />
+    <polyline points="12 19 5 12 12 5" />
+  </svg>
+)
+
+function GuardadoToast({ open, visible }: { open: boolean; visible: boolean }) {
+  if (!open) return null
+  return (
+    <div className={`
+      fixed bottom-8 right-6 z-[9999]
+      flex items-center gap-2.5
+      bg-white dark:bg-[#1e2435]
+      border border-emerald-200 dark:border-emerald-700
+      text-emerald-700 dark:text-emerald-400
+      text-sm font-medium
+      px-4 py-3 rounded-2xl
+      shadow-lg shadow-emerald-100/60 dark:shadow-none
+      pointer-events-none select-none
+      transition-all duration-300 ease-out
+      ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}
+    `}>
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <circle cx="8.5" cy="8.5" r="7.25" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M5 9 L7.5 11.5 L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      Ingeniería guardada
+    </div>
+  )
+}
 
 const TRANSICIONES: Record<string, Partial<Record<EstadoIngenieria, EstadoIngenieria[]>>> = {
   Operativo: {
@@ -40,6 +87,21 @@ export function Topbar({ onCerrar }: Props) {
     : []
 
   const isConsulta = usuario.perfil === 'Consulta'
+
+  const [toastOpen, setToastOpen]       = useState(false)
+  const [toastVisible, setToastVisible] = useState(false)
+  const t1 = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const t2 = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const guardar = useCallback(() => {
+    clearTimeout(t1.current)
+    clearTimeout(t2.current)
+    setToastOpen(true)
+    setToastVisible(false)
+    requestAnimationFrame(() => requestAnimationFrame(() => setToastVisible(true)))
+    t1.current = setTimeout(() => setToastVisible(false), 2200)
+    t2.current = setTimeout(() => setToastOpen(false),    2550)
+  }, [])
 
   return (
     <header className="
@@ -118,13 +180,33 @@ export function Topbar({ onCerrar }: Props) {
 
       <UserMenu />
 
-      {/* Toggle tema */}
+      {/* Toggle tema — solo icono (igual que el grid) */}
       <button
         onClick={toggleTema}
-        className="h-9 rounded-xl border border-white/25 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/15 flex-shrink-0"
+        title={temaOscuro ? 'Tema claro' : 'Tema oscuro'}
+        aria-label={temaOscuro ? 'Tema claro' : 'Tema oscuro'}
+        className="h-9 w-9 flex items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white text-base transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/15 flex-shrink-0"
       >
-        {temaOscuro ? '☀ Claro' : '🌙 Oscuro'}
+        {temaOscuro ? '☀' : '🌙'}
       </button>
+
+      {/* Guardar */}
+      <button
+        onClick={guardar}
+        className="h-9 flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/15 flex-shrink-0"
+      >
+        <SaveIcon /> Guardar
+      </button>
+
+      {/* Volver */}
+      <button
+        onClick={onCerrar}
+        className="h-9 flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/15 flex-shrink-0"
+      >
+        <BackIcon /> Volver
+      </button>
+
+      <GuardadoToast open={toastOpen} visible={toastVisible} />
     </header>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 import { memo } from 'react'
-import { Handle, Position, type NodeProps } from 'reactflow'
+import { Handle, Position, useStore, type NodeProps } from 'reactflow'
 import { DeviceIcon, LIGHT_COLORS } from '@/components/ui/DeviceIcons'
 import { ORIGEN_COLOR } from '@/lib/utils'
 import { useAppStore } from '@/store/app.store'
@@ -9,8 +9,24 @@ import type { DispositivoData } from '@/types'
 // 6px handles — mismo tamaño que el default de ReactFlow para que el centrado sea exacto
 const HANDLE_CLS = '!bg-gray-400 dark:!bg-gray-500 !w-1.5 !h-1.5 !border-none !rounded-full'
 
-function DispositivoNode({ data, selected }: NodeProps<DispositivoData>) {
+function DispositivoNode({ id, data, selected }: NodeProps<DispositivoData>) {
   const temaOscuro = useAppStore((s) => s.temaOscuro)
+
+  // Extremos del enlace seleccionado (el que tiene updatable) que caen sobre este nodo.
+  // Se devuelve como string para que useStore no fuerce re-render en cada cambio.
+  const extremos = useStore((s) => {
+    const sel = s.edges.find((e) => (e as { updatable?: boolean }).updatable)
+    if (!sel) return ''
+    let out = ''
+    if (sel.source === id && sel.sourceHandle) out += `S${sel.sourceHandle};`
+    if (sel.target === id && sel.targetHandle) out += `T${sel.targetHandle};`
+    return out
+  })
+
+  // En un extremo del enlace seleccionado no se debe poder INICIAR un enlace nuevo
+  // (sólo mover el existente). No afecta soltar/reconectar ni mover.
+  const bloquearInicio = (h: string) =>
+    extremos.includes(`S${h};`) || extremos.includes(`T${h}-t;`)
 
   const lightColors = LIGHT_COLORS[data.tipo]
   const iconColor       = temaOscuro ? undefined : lightColors?.color
@@ -28,10 +44,10 @@ function DispositivoNode({ data, selected }: NodeProps<DispositivoData>) {
       } : undefined}
     >
       {/* Handles — source (visible) */}
-      <Handle type="source" position={Position.Top}    id="top"    className={HANDLE_CLS} />
-      <Handle type="source" position={Position.Right}  id="right"  className={HANDLE_CLS} />
-      <Handle type="source" position={Position.Bottom} id="bottom" className={HANDLE_CLS} />
-      <Handle type="source" position={Position.Left}   id="left"   className={HANDLE_CLS} />
+      <Handle type="source" position={Position.Top}    id="top"    className={HANDLE_CLS} isConnectableStart={!bloquearInicio('top')} />
+      <Handle type="source" position={Position.Right}  id="right"  className={HANDLE_CLS} isConnectableStart={!bloquearInicio('right')} />
+      <Handle type="source" position={Position.Bottom} id="bottom" className={HANDLE_CLS} isConnectableStart={!bloquearInicio('bottom')} />
+      <Handle type="source" position={Position.Left}   id="left"   className={HANDLE_CLS} isConnectableStart={!bloquearInicio('left')} />
       {/* Handles — target: invisibles pero con área amplia para facilitar conexiones/reconexiones */}
       <Handle type="target" position={Position.Top}    id="top-t"    className="opacity-0 !w-5 !h-5 !border-none" />
       <Handle type="target" position={Position.Right}  id="right-t"  className="opacity-0 !w-5 !h-5 !border-none" />

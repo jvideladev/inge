@@ -20,6 +20,20 @@ import type { LayoutModo } from '@/components/layout/Sidebar'
 const NODE_TYPES  = { dispositivo: DispositivoNode }
 const EDGE_TYPES  = { enlace: EnlaceEdge }
 
+// React Flow emite un falso positivo de "new nodeTypes/edgeTypes object" bajo React 19
+// en desarrollo, aunque los tipos están definidos fuera del componente. Silenciamos solo
+// ese mensaje para no ensuciar la consola.
+if (typeof window !== 'undefined' && !(window as any).__rfWarnPatched) {
+  ;(window as any).__rfWarnPatched = true
+  const RF_NOISE = 'It looks like you\'ve created a new nodeTypes or edgeTypes'
+  const silence = (original: (...a: unknown[]) => void) => (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && args[0].includes(RF_NOISE)) return
+    original(...args)
+  }
+  console.warn = silence(console.warn.bind(console))
+  console.error = silence(console.error.bind(console))
+}
+
 // 5 zoom levels — n/24 con n múltiplo de 4, garantiza gap/DPR entero
 // para DPR ∈ {1, 1.25, 1.5, 1.75, 2} → sin artefacto de fondo en ningún nivel
 // n=8 → 33%  n=12 → 50%  n=24 → 100%  n=36 → 150%  n=48 → 200%
@@ -250,7 +264,6 @@ function aplicarLayout(nodes: Node[], edges: Edge[], modo: LayoutModo): Node[] {
 export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnlaceActivo, mostrarLeyendas }, ref) {
   const temaOscuro       = useAppStore((s) => s.temaOscuro)
   const ingenieriaActiva = useAppStore((s) => s.ingenieriaActiva)
-  const guardarCambios   = useAppStore((s) => s.guardarCambios)
   const marcarCambios    = useAppStore((s) => s.marcarCambios)
 
   const [nodes, setNodes, onNodesChange] = useNodesState(ingenieriaActiva?.nodes ?? [])
@@ -616,8 +629,6 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
     })
   }, [rfInstance, drawBg])
 
-  const handleGuardar = () => guardarCambios(nodes, edges)
-
   const handleExportExcel = () =>
     alert('Exportación a Excel (pendiente de implementar con servicio real)')
 
@@ -724,7 +735,6 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
         </ReactFlow>
 
         <FabMenu
-          onGuardar={handleGuardar}
           onExportPDF={handleExportPDF}
           onExportExcel={handleExportExcel}
           onFullscreen={handleFullscreen}
