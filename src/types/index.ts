@@ -60,6 +60,7 @@ export interface MetadatoDispositivo {
 }
 
 export interface MetadatoEnlace {
+  uuid:           string
   numeroEnlace:   string
   puertoSalida:   string
   etiquetaSalida: string

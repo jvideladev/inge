@@ -1,6 +1,6 @@
 'use client'
 import { useRef, useState, useCallback } from 'react'
-import { ORIGEN_COLOR, ENLACE_STYLE } from '@/lib/utils'
+import { ORIGEN_COLOR } from '@/lib/utils'
 import type { DispositivoData, EnlaceData, MetadatoDispositivo, MetadatoEnlace, TipoEnlace } from '@/types'
 import type { Node, Edge } from 'reactflow'
 
@@ -291,33 +291,23 @@ function EdgeProps({ edge, onUpdateEdge }: { edge: Edge; onUpdateEdge: (id: stri
       <PanelDivider />
 
       {/* Tipo de enlace */}
-      <div className="px-3 pt-2 pb-1">
-        <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1.5">Tipo de enlace</p>
-        <div className="flex gap-1 flex-wrap">
-          {TIPOS_ENLACE.map((t) => {
-            const s = ENLACE_STYLE[t]
-            const activo = data.tipo === t
-            return (
-              <button key={t}
-                onClick={() => onUpdateEdge(edge.id, { tipo: t, metadatos: data.metadatos })}
-                className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-sm border transition-colors ${
-                  activo
-                    ? 'border-blue-400 bg-blue-50 dark:bg-[#1a2340] text-blue-600 dark:text-blue-300 font-medium'
-                    : 'border-[#BFD0E8] dark:border-[#2a3349] text-gray-500 dark:text-gray-400 hover:border-blue-300'
-                }`}>
-                <svg width="16" height="4" className="flex-shrink-0">
-                  <line x1="0" y1="2" x2="16" y2="2" stroke={s.stroke} strokeWidth={s.strokeWidth} strokeDasharray={s.strokeDasharray}/>
-                </svg>
-                {t}
-              </button>
-            )
-          })}
-        </div>
+      <div className="px-3 pt-2 pb-1 flex items-center gap-2">
+        <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider flex-shrink-0">Tipo de enlace</p>
+        <select
+          value={data.tipo}
+          onChange={(e) => onUpdateEdge(edge.id, { tipo: e.target.value as TipoEnlace, metadatos: data.metadatos })}
+          className="flex-1 text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        >
+          {TIPOS_ENLACE.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
       </div>
 
       {/* Campos del enlace */}
       <div className="px-3 pt-1 pb-3 flex flex-col gap-2">
         {([
+          ['uuid',            'UUID'],
           ['numeroEnlace',    'Nombre enlace'],
           ['puertoSalida',    'Puerto origen'],
           ['etiquetaSalida',  'Etiqueta origen'],

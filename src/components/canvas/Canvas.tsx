@@ -335,7 +335,7 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
         origen:         'Manual',
         registradoCMDB: false,
         metadatos: {
-          numeroEnlace: '', puertoSalida: '', etiquetaSalida: '',
+          uuid: '', numeroEnlace: '', puertoSalida: '', etiquetaSalida: '',
           puertoLlegada: '', etiquetaLlegada: '', servicios: '',
           customFields: {}
         }
