@@ -117,125 +117,128 @@ function NodeProps({ node, onUpdateNode }: { node: Node; onUpdateNode: (id: stri
   }
 
   return (
-    <>
-      {/* CMDB badge */}
-      <div className="mx-3 mt-3">
-        {data.registradoCMDB ? (
-          <div className="flex items-center gap-2 bg-teal-50 dark:bg-teal-900/20 border border-teal-400 text-teal-600 dark:text-teal-400 rounded-md px-2.5 py-2 text-sm font-medium">
-            <CmdbCheck /> Registrado en CMDB
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 bg-white dark:bg-gray-800/40 border border-[#BFD0E8] dark:border-gray-700 text-gray-500 rounded-md px-2.5 py-2 text-sm">
-            <CmdbX /> No registrado en CMDB
-          </div>
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Campos — única parte scrolleable */}
+      <div className="overflow-y-auto flex-1 min-h-0">
+        <div className="px-3 pt-3 pb-3 flex flex-col gap-2">
+          {([
+            ['label',      'Nombre'],
+            ['hostname',   'Hostname'],
+            ['modelo',     'Modelo'],
+            ['ip',         'IP / Dirección'],
+            ['serial',     'Serial'],
+            ['ubicacion',  'Ubicación'],
+            ['fabricante', 'Fabricante'],
+          ] as [string, string][]).map(([key, label]) => {
+            const isLabel = key === 'label'
+            const val = isLabel ? data.label : (data.metadatos[key as keyof MetadatoDispositivo] as string)
+            return (
+              <div key={key}>
+                <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">{label}</p>
+                <input
+                  className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  value={val}
+                  onChange={(e) => isLabel ? onUpdateNode(node.id, { label: e.target.value }) : updateMeta(key as keyof MetadatoDispositivo, e.target.value)}
+                />
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Campos personalizados */}
+        {Object.keys(data.metadatos.customFields).length > 0 && (
+          <>
+            <PanelDivider />
+            <div className="px-3 pt-2 pb-4 flex flex-col gap-2">
+              <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider">
+                Campos personalizados
+              </p>
+              {Object.entries(data.metadatos.customFields).map(([k, v]) => (
+                <div key={k}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider truncate">{k}</p>
+                    <button
+                      onClick={() => removeCustomField(k)}
+                      title="Eliminar campo"
+                      className="ml-2 flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <input
+                    value={v}
+                    onChange={(e) => onUpdateNode(node.id, { metadatos: { ...data.metadatos, customFields: { ...data.metadatos.customFields, [k]: e.target.value } } })}
+                    className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
-      {/* Origen badge */}
-      <div className="mx-3 mt-2 mb-2">
-        <div className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium border"
-          style={{ backgroundColor: `${origenColor}18`, borderColor: `${origenColor}40`, color: origenColor }}>
-          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: origenColor }}/>
-          Origen: {data.origen}
-        </div>
-      </div>
-
-      <PanelDivider />
-
-      {/* Campos estándar */}
-      <div className="px-3 pt-2 pb-3 flex flex-col gap-2">
-        {([
-          ['label',      'Nombre'],
-          ['hostname',   'Hostname'],
-          ['modelo',     'Modelo'],
-          ['ip',         'IP / Dirección'],
-          ['serial',     'Serial'],
-          ['ubicacion',  'Ubicación'],
-          ['fabricante', 'Fabricante'],
-        ] as [string, string][]).map(([key, label]) => {
-          const isLabel = key === 'label'
-          const val = isLabel ? data.label : (data.metadatos[key as keyof MetadatoDispositivo] as string)
-          return (
-            <div key={key}>
-              <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">{label}</p>
-              <input
-                className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                value={val}
-                onChange={(e) => isLabel ? onUpdateNode(node.id, { label: e.target.value }) : updateMeta(key as keyof MetadatoDispositivo, e.target.value)}
-              />
-            </div>
-          )
-        })}
-      </div>
-
-      <PanelDivider />
-
-      {/* Agregar campo personalizado */}
-      <div className="px-3 pt-2 flex flex-col gap-2">
-        <div>
-          <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">Título</p>
-          <input
-            placeholder="Nombre del campo"
-            value={newKey}
-            onChange={(e) => setNewKey(e.target.value)}
-            className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">Valor</p>
-          <input
-            placeholder="Contenido del campo"
-            value={newVal}
-            onChange={(e) => setNewVal(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addCustomField()}
-            className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-      <div className="px-3 pt-2 pb-3">
-        <button
-          onClick={addCustomField}
-          className="w-full text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg py-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-        >
-          + Agregar campo
-        </button>
-      </div>
-
-      {/* Campos personalizados — se muestran debajo del botón */}
-      {Object.keys(data.metadatos.customFields).length > 0 && (
-        <>
-          <PanelDivider />
-          <div className="px-3 pt-2 pb-4 flex flex-col gap-2">
-            <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider">
-              Campos personalizados
-            </p>
-            {Object.entries(data.metadatos.customFields).map(([k, v]) => (
-              <div key={k}>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider truncate">{k}</p>
-                  <button
-                    onClick={() => removeCustomField(k)}
-                    title="Eliminar campo"
-                    className="ml-2 flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                      <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                </div>
-                <input
-                  value={v}
-                  onChange={(e) => onUpdateNode(node.id, { metadatos: { ...data.metadatos, customFields: { ...data.metadatos.customFields, [k]: e.target.value } } })}
-                  className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            ))}
+      {/* Footer fijo */}
+      <div className="flex-shrink-0 border-t border-[#D0DEEF] dark:border-[#2a3349]">
+        {/* Agregar campo personalizado */}
+        <div className="px-3 pt-3 flex flex-col gap-2">
+          <div>
+            <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">Título</p>
+            <input
+              placeholder="Nombre del campo"
+              value={newKey}
+              onChange={(e) => setNewKey(e.target.value)}
+              className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
           </div>
-        </>
-      )}
+          <div>
+            <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">Valor</p>
+            <input
+              placeholder="Contenido del campo"
+              value={newVal}
+              onChange={(e) => setNewVal(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCustomField()}
+              className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+        <div className="px-3 pt-2 pb-2">
+          <button
+            onClick={addCustomField}
+            className="w-full text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg py-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+          >
+            + Agregar campo
+          </button>
+        </div>
+
+        <PanelDivider />
+
+        {/* CMDB badge */}
+        <div className="mx-3 mt-2">
+          {data.registradoCMDB ? (
+            <div className="flex items-center gap-2 bg-teal-50 dark:bg-teal-900/20 border border-teal-400 text-teal-600 dark:text-teal-400 rounded-md px-2.5 py-2 text-sm font-medium">
+              <CmdbCheck /> Registrado en CMDB
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-white dark:bg-gray-800/40 border border-[#BFD0E8] dark:border-gray-700 text-gray-500 rounded-md px-2.5 py-2 text-sm">
+              <CmdbX /> No registrado en CMDB
+            </div>
+          )}
+        </div>
+
+        {/* Origen badge */}
+        <div className="mx-3 mt-2 mb-3">
+          <div className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium border"
+            style={{ backgroundColor: `${origenColor}18`, borderColor: `${origenColor}40`, color: origenColor }}>
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: origenColor }}/>
+            Origen: {data.origen}
+          </div>
+        </div>
+      </div>
 
       <Toast open={toast.open} visible={toast.visible} />
-    </>
+    </div>
   )
 }
 
@@ -265,135 +268,138 @@ function EdgeProps({ edge, onUpdateEdge }: { edge: Edge; onUpdateEdge: (id: stri
   }
 
   return (
-    <>
-      {/* CMDB badge */}
-      <div className="mx-3 mt-3">
-        {data.registradoCMDB ? (
-          <div className="flex items-center gap-2 bg-teal-50 dark:bg-teal-900/20 border border-teal-400 text-teal-600 dark:text-teal-400 rounded-md px-2.5 py-2 text-sm font-medium">
-            <CmdbCheck /> Registrado en CMDB
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 bg-white dark:bg-gray-800/40 border border-[#BFD0E8] dark:border-gray-700 text-gray-500 rounded-md px-2.5 py-2 text-sm">
-            <CmdbX /> No registrado en CMDB
-          </div>
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Campos — única parte scrolleable */}
+      <div className="overflow-y-auto flex-1 min-h-0">
+        <div className="px-3 pt-3 pb-3 flex flex-col gap-2">
+          {([
+            ['numeroEnlace',    'Nombre enlace'],
+            ['uuid',            'UUID'],
+            ['puertoSalida',    'Puerto origen'],
+            ['etiquetaSalida',  'Etiqueta origen'],
+            ['puertoLlegada',   'Puerto destino'],
+            ['etiquetaLlegada', 'Etiqueta destino'],
+            ['servicios',       'Servicios'],
+          ] as [keyof MetadatoEnlace, string][]).map(([key, label]) => (
+            <div key={key}>
+              <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">{label}</p>
+              <input
+                className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                value={data.metadatos[key] as string}
+                onChange={(e) => updateMeta(key, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Campos personalizados */}
+        {Object.keys(data.metadatos.customFields).length > 0 && (
+          <>
+            <PanelDivider />
+            <div className="px-3 pt-2 pb-4 flex flex-col gap-2">
+              <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider">
+                Campos personalizados
+              </p>
+              {Object.entries(data.metadatos.customFields).map(([k, v]) => (
+                <div key={k}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider truncate">{k}</p>
+                    <button
+                      onClick={() => removeCustomField(k)}
+                      title="Eliminar campo"
+                      className="ml-2 flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <input
+                    value={v}
+                    onChange={(e) => onUpdateEdge(edge.id, { metadatos: { ...data.metadatos, customFields: { ...data.metadatos.customFields, [k]: e.target.value } } })}
+                    className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
-      {/* Origen badge */}
-      <div className="mx-3 mt-2 mb-2">
-        <div className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium border"
-          style={{ backgroundColor: `${origenColor}18`, borderColor: `${origenColor}40`, color: origenColor }}>
-          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: origenColor }}/>
-          Origen: {data.origen}
-        </div>
-      </div>
-
-      <PanelDivider />
-
-      {/* Tipo de enlace */}
-      <div className="px-3 pt-2 pb-1 flex items-center gap-2">
-        <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider flex-shrink-0">Tipo de enlace</p>
-        <select
-          value={data.tipo}
-          onChange={(e) => onUpdateEdge(edge.id, { tipo: e.target.value as TipoEnlace, metadatos: data.metadatos })}
-          className="flex-1 text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          {TIPOS_ENLACE.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Campos del enlace */}
-      <div className="px-3 pt-1 pb-3 flex flex-col gap-2">
-        {([
-          ['uuid',            'UUID'],
-          ['numeroEnlace',    'Nombre enlace'],
-          ['puertoSalida',    'Puerto origen'],
-          ['etiquetaSalida',  'Etiqueta origen'],
-          ['puertoLlegada',   'Puerto destino'],
-          ['etiquetaLlegada', 'Etiqueta destino'],
-          ['servicios',       'Servicios'],
-        ] as [keyof MetadatoEnlace, string][]).map(([key, label]) => (
-          <div key={key}>
-            <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">{label}</p>
+      {/* Footer fijo */}
+      <div className="flex-shrink-0 border-t border-[#D0DEEF] dark:border-[#2a3349]">
+        {/* Agregar campo personalizado */}
+        <div className="px-3 pt-3 flex flex-col gap-2">
+          <div>
+            <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">Título</p>
             <input
-              className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              value={data.metadatos[key] as string}
-              onChange={(e) => updateMeta(key, e.target.value)}
+              placeholder="Nombre del campo"
+              value={newKey}
+              onChange={(e) => setNewKey(e.target.value)}
+              className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-        ))}
-      </div>
-
-      <PanelDivider />
-
-      {/* Agregar campo personalizado */}
-      <div className="px-3 pt-2 flex flex-col gap-2">
-        <div>
-          <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">Título</p>
-          <input
-            placeholder="Nombre del campo"
-            value={newKey}
-            onChange={(e) => setNewKey(e.target.value)}
-            className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">Valor</p>
-          <input
-            placeholder="Contenido del campo"
-            value={newVal}
-            onChange={(e) => setNewVal(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addCustomField()}
-            className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-      <div className="px-3 pt-2 pb-3">
-        <button
-          onClick={addCustomField}
-          className="w-full text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg py-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-        >
-          + Agregar campo
-        </button>
-      </div>
-
-      {/* Campos personalizados — se muestran debajo del botón */}
-      {Object.keys(data.metadatos.customFields).length > 0 && (
-        <>
-          <PanelDivider />
-          <div className="px-3 pt-2 pb-4 flex flex-col gap-2">
-            <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider">
-              Campos personalizados
-            </p>
-            {Object.entries(data.metadatos.customFields).map(([k, v]) => (
-              <div key={k}>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider truncate">{k}</p>
-                  <button
-                    onClick={() => removeCustomField(k)}
-                    title="Eliminar campo"
-                    className="ml-2 flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                      <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                </div>
-                <input
-                  value={v}
-                  onChange={(e) => onUpdateEdge(edge.id, { metadatos: { ...data.metadatos, customFields: { ...data.metadatos.customFields, [k]: e.target.value } } })}
-                  className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            ))}
+          <div>
+            <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">Valor</p>
+            <input
+              placeholder="Contenido del campo"
+              value={newVal}
+              onChange={(e) => setNewVal(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCustomField()}
+              className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
           </div>
-        </>
-      )}
+        </div>
+        <div className="px-3 pt-2 pb-2">
+          <button
+            onClick={addCustomField}
+            className="w-full text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg py-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+          >
+            + Agregar campo
+          </button>
+        </div>
+
+        <PanelDivider />
+
+        {/* Tipo de enlace */}
+        <div className="px-3 pt-2 pb-1 flex items-center gap-2">
+          <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider flex-shrink-0">Tipo de enlace</p>
+          <select
+            value={data.tipo}
+            onChange={(e) => onUpdateEdge(edge.id, { tipo: e.target.value as TipoEnlace, metadatos: data.metadatos })}
+            className="flex-1 text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {TIPOS_ENLACE.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* CMDB badge */}
+        <div className="mx-3 mt-2">
+          {data.registradoCMDB ? (
+            <div className="flex items-center gap-2 bg-teal-50 dark:bg-teal-900/20 border border-teal-400 text-teal-600 dark:text-teal-400 rounded-md px-2.5 py-2 text-sm font-medium">
+              <CmdbCheck /> Registrado en CMDB
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-white dark:bg-gray-800/40 border border-[#BFD0E8] dark:border-gray-700 text-gray-500 rounded-md px-2.5 py-2 text-sm">
+              <CmdbX /> No registrado en CMDB
+            </div>
+          )}
+        </div>
+
+        {/* Origen badge */}
+        <div className="mx-3 mt-2 mb-3">
+          <div className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium border"
+            style={{ backgroundColor: `${origenColor}18`, borderColor: `${origenColor}40`, color: origenColor }}>
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: origenColor }}/>
+            Origen: {data.origen}
+          </div>
+        </div>
+      </div>
 
       <Toast open={toast.open} visible={toast.visible} />
-    </>
+    </div>
   )
 }
 
@@ -413,7 +419,7 @@ export function PropiedadesPanel({ selectedItem, onClose, onUpdateNode, onUpdate
     <div className={`
       flex flex-col overflow-hidden
       bg-[#EDF2FA] dark:bg-[#161b27]
-      ${panelModo === 'fijo' ? 'border-l border-[#BFD0E8] dark:border-[#2a3349]' : 'rounded-xl border border-[#BFD0E8] dark:border-[#2a3349] shadow-2xl'}
+      ${panelModo === 'fijo' ? 'h-full border-l border-[#BFD0E8] dark:border-[#2a3349]' : 'rounded-xl border border-[#BFD0E8] dark:border-[#2a3349] shadow-2xl'}
     `}
       style={panelModo === 'fijo' ? { width: 248 } : { width: 256, maxHeight: '82vh' }}
     >
@@ -424,8 +430,8 @@ export function PropiedadesPanel({ selectedItem, onClose, onUpdateNode, onUpdate
       >
         <span className="text-base font-semibold text-gray-800 dark:text-gray-100 truncate max-w-[150px]">
           {isNode
-            ? (selectedItem.item.data as DispositivoData).label
-            : `Enlace ${(selectedItem.item.data as EnlaceData).metadatos?.numeroEnlace || ''}`}
+            ? (selectedItem.item.data as DispositivoData).tipo
+            : 'Enlace'}
         </span>
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
@@ -448,8 +454,8 @@ export function PropiedadesPanel({ selectedItem, onClose, onUpdateNode, onUpdate
         </div>
       </div>
 
-      {/* Scrollable content */}
-      <div className="overflow-y-auto flex-1">
+      {/* Body: scroll interno de campos + footer fijo */}
+      <div className="flex-1 min-h-0 flex flex-col">
         {isNode
           ? <NodeProps node={selectedItem.item} onUpdateNode={onUpdateNode} />
           : <EdgeProps edge={selectedItem.item} onUpdateEdge={onUpdateEdge} />
@@ -467,7 +473,7 @@ export function PropiedadesPanel({ selectedItem, onClose, onUpdateNode, onUpdate
   }
 
   return (
-    <div className="flex-shrink-0 flex flex-col overflow-y-auto bg-[#EDF2FA] dark:bg-[#161b27]" style={{ width: 248 }}>
+    <div className="flex-shrink-0 flex flex-col bg-[#EDF2FA] dark:bg-[#161b27]" style={{ width: 248 }}>
       {panelContent}
     </div>
   )
