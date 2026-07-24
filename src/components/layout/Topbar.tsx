@@ -4,6 +4,7 @@ import { useAppStore } from '@/store/app.store'
 import { estadoColor } from '@/lib/utils'
 import type { EstadoIngenieria } from '@/types'
 import { UserMenu } from '@/components/layout/UserMenu'
+import { PublicacionBadge } from '@/components/ui/PublicacionBadge'
 
 const iconProps = {
   width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none',
@@ -53,21 +54,30 @@ function GuardadoToast({ open, visible }: { open: boolean; visible: boolean }) {
 
 const TRANSICIONES: Record<string, Partial<Record<EstadoIngenieria, EstadoIngenieria[]>>> = {
   Operativo: {
-    'Nueva':       ['En revisión'],
-    'Rechazada':   ['Nueva', 'En revisión'],
+    'En construcción': ['En revisión'],
+    'Rechazada':       ['En revisión'],
   },
   Supervisor: {
-    'En revisión': ['Aprobada', 'Rechazada'],
-    'Aprobada':    ['Aprovisionada'],
-    'Aprovisionada':['Implementada'],
+    'En revisión':   ['Aprobada', 'Rechazada'],
+    'Aprobada':      ['Aprovisionada'],
+    'Aprovisionada': ['Implementada'],
   },
+}
+
+/** Transiciones que abren modal de comentario (rechazo obligatorio; a revisión opcional) */
+function comentarioParaTransicion(destino: EstadoIngenieria): 'requerido' | 'opcional' | null {
+  if (destino === 'Rechazada') return 'requerido'
+  if (destino === 'En revisión') return 'opcional'
+  return null
 }
 
 interface Props {
   onCerrar: () => void
+  onGuardar?: () => Promise<void> | void
+  soloLectura?: boolean
 }
 
-export function Topbar({ onCerrar }: Props) {
+export function Topbar({ onCerrar, onGuardar, soloLectura = false }: Props) {
   const ing               = useAppStore((s) => s.ingenieriaActiva)
   const usuario           = useAppStore((s) => s.usuario)
   const temaOscuro        = useAppStore((s) => s.temaOscuro)
@@ -82,18 +92,22 @@ export function Topbar({ onCerrar }: Props) {
     : 0
 
   const estadoActual = ing?.estado
-  const transiciones = estadoActual
+  const transiciones = (!soloLectura && estadoActual)
     ? (TRANSICIONES[usuario.perfil]?.[estadoActual] ?? [])
     : []
 
-  const isConsulta = usuario.perfil === 'Consulta'
+  const isConsulta = usuario.perfil === 'Consulta' || soloLectura
 
   const [toastOpen, setToastOpen]       = useState(false)
   const [toastVisible, setToastVisible] = useState(false)
+  const [guardando, setGuardando]       = useState(false)
+  const [pendienteEstado, setPendienteEstado] = useState<EstadoIngenieria | null>(null)
+  const [comentarioDraft, setComentarioDraft] = useState('')
+  const [cambiandoEstado, setCambiandoEstado] = useState(false)
   const t1 = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const t2 = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  const guardar = useCallback(() => {
+  const mostrarToast = () => {
     clearTimeout(t1.current)
     clearTimeout(t2.current)
     setToastOpen(true)
@@ -101,7 +115,55 @@ export function Topbar({ onCerrar }: Props) {
     requestAnimationFrame(() => requestAnimationFrame(() => setToastVisible(true)))
     t1.current = setTimeout(() => setToastVisible(false), 2200)
     t2.current = setTimeout(() => setToastOpen(false),    2550)
-  }, [])
+  }
+
+  const solicitarCambioEstado = async (destino: EstadoIngenieria) => {
+    if (!ing) return
+    const modo = comentarioParaTransicion(destino)
+    if (modo) {
+      setPendienteEstado(destino)
+      setComentarioDraft('')
+      return
+    }
+    try {
+      await cambiarEstado(ing.id, destino)
+    } catch (e: any) {
+      window.alert(e?.message ?? 'No se pudo cambiar el estado')
+    }
+  }
+
+  const confirmarCambioConComentario = async () => {
+    if (!ing || !pendienteEstado) return
+    const modo = comentarioParaTransicion(pendienteEstado)
+    const texto = comentarioDraft.trim()
+    if (modo === 'requerido' && !texto) {
+      window.alert('Al rechazar se requiere un comentario')
+      return
+    }
+    setCambiandoEstado(true)
+    try {
+      await cambiarEstado(ing.id, pendienteEstado, texto || undefined)
+      setPendienteEstado(null)
+      setComentarioDraft('')
+    } catch (e: any) {
+      window.alert(e?.message ?? 'No se pudo cambiar el estado')
+    } finally {
+      setCambiandoEstado(false)
+    }
+  }
+
+  const guardar = useCallback(async () => {
+    if (soloLectura || !onGuardar || guardando) return
+    setGuardando(true)
+    try {
+      await onGuardar()
+      mostrarToast()
+    } catch (e: any) {
+      window.alert(e?.message ?? 'No se pudo guardar')
+    } finally {
+      setGuardando(false)
+    }
+  }, [onGuardar, soloLectura, guardando])
 
   return (
     <header className="
@@ -130,11 +192,18 @@ export function Topbar({ onCerrar }: Props) {
           <span className={`text-sm font-semibold px-2 py-0.5 rounded-md flex-shrink-0 ${estadoColor(ing.estado)}`}>
             {ing.estado}
           </span>
+          <PublicacionBadge ingenieria={ing} size="md" />
 
           {/* Sin guardar */}
-          {cambiosSinGuardar && (
+          {cambiosSinGuardar && !soloLectura && (
             <span className="text-sm px-2 py-0.5 rounded-md bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 flex-shrink-0">
               ● Sin guardar
+            </span>
+          )}
+
+          {soloLectura && (
+            <span className="text-sm px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 flex-shrink-0">
+              Demo · solo lectura
             </span>
           )}
 
@@ -155,16 +224,16 @@ export function Topbar({ onCerrar }: Props) {
             <div className="flex gap-1 flex-shrink-0">
               {transiciones.map((t) => {
                 let cls = ''
-                if (t === 'En revisión')   cls = 'bg-amber-500 hover:bg-amber-600 text-white'
+                if (t === 'En revisión')     cls = 'bg-amber-500 hover:bg-amber-600 text-white'
                 else if (t === 'Aprobada')      cls = 'bg-green-600 hover:bg-green-700 text-white'
                 else if (t === 'Rechazada')     cls = 'bg-red-600 hover:bg-red-700 text-white'
                 else if (t === 'Aprovisionada') cls = 'bg-teal-600 hover:bg-teal-700 text-white'
                 else if (t === 'Implementada')  cls = 'bg-purple-600 hover:bg-purple-700 text-white'
-                else if (t === 'Nueva')         cls = 'bg-[#3c465f] hover:bg-[#2f384e] text-white'
+                else if (t === 'En construcción') cls = 'bg-[#3c465f] hover:bg-[#2f384e] text-white'
                 return (
                   <button
                     key={t}
-                    onClick={() => ing && cambiarEstado(ing.id, t)}
+                    onClick={() => void solicitarCambioEstado(t)}
                     className={`text-sm font-semibold px-3 py-1 rounded-md transition-colors ${cls}`}
                   >
                     → {t}
@@ -177,6 +246,50 @@ export function Topbar({ onCerrar }: Props) {
       )}
 
       <div className="flex-1" />
+
+      {/* Modal comentario de transición */}
+      {pendienteEstado && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white dark:bg-[#1e2435] border border-gray-200 dark:border-[#2a3349] shadow-xl p-4">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Cambiar a «{pendienteEstado}»
+            </h3>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {pendienteEstado === 'Rechazada'
+                ? 'Indicá el motivo del rechazo (obligatorio). Quedará en la conversación de comentarios.'
+                : 'Podés agregar un comentario opcional para el supervisor.'}
+            </p>
+            <textarea
+              className="mt-3 w-full min-h-[96px] text-sm rounded-lg border border-gray-200 dark:border-[#2a3349] bg-white dark:bg-[#161b27] px-3 py-2 text-gray-800 dark:text-gray-100"
+              value={comentarioDraft}
+              onChange={(e) => setComentarioDraft(e.target.value)}
+              placeholder="Escribí el comentario…"
+              autoFocus
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                className="text-sm px-3 py-1.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => { setPendienteEstado(null); setComentarioDraft('') }}
+                disabled={cambiandoEstado}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                onClick={() => void confirmarCambioConComentario()}
+                disabled={cambiandoEstado}
+              >
+                {cambiandoEstado ? 'Guardando…' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Spacer was above — keep controls below */}
+      {/* intentionally empty: flex-1 already placed */}
 
       <UserMenu />
 
@@ -191,12 +304,15 @@ export function Topbar({ onCerrar }: Props) {
       </button>
 
       {/* Guardar */}
-      <button
-        onClick={guardar}
-        className="h-9 flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/15 flex-shrink-0"
-      >
-        <SaveIcon /> Guardar
-      </button>
+      {!soloLectura && (
+        <button
+          onClick={guardar}
+          disabled={guardando}
+          className="h-9 flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/15 flex-shrink-0 disabled:opacity-50"
+        >
+          <SaveIcon /> {guardando ? 'Guardando…' : 'Guardar'}
+        </button>
+      )}
 
       {/* Volver */}
       <button

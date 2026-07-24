@@ -3,41 +3,27 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MiPerfil } from '@/components/layout/MiPerfil'
-import { USUARIOS_MOCK } from '@/data/mock'
 import { useAppStore } from '@/store/app.store'
 
 export default function MiPerfilPage() {
   const router = useRouter()
   const autenticado = useAppStore((s) => s.autenticado)
-  const setUsuario = useAppStore((s) => s.setUsuario)
-  const login = useAppStore((s) => s.login)
+  const restoreSession = useAppStore((s) => s.restoreSession)
   const [validandoSesion, setValidandoSesion] = useState(true)
 
   useEffect(() => {
-    const sesionGuardada = window.localStorage.getItem('ingenierias-auth')
-
-    if (!autenticado && sesionGuardada) {
-      try {
-        const sesion = JSON.parse(sesionGuardada) as { usuarioId?: string }
-        const usuario = USUARIOS_MOCK.find((u) => u.id === sesion.usuarioId)
-        if (usuario) {
-          setUsuario(usuario)
-          login(usuario.id)
-          setValidandoSesion(false)
-          return
-        }
-      } catch {
-        window.localStorage.removeItem('ingenierias-auth')
+    let cancelled = false
+    ;(async () => {
+      const ok = autenticado || (await restoreSession())
+      if (cancelled) return
+      if (!ok) {
+        router.replace('/login')
+        return
       }
-    }
-
-    if (!autenticado) {
-      router.replace('/login')
-      return
-    }
-
-    setValidandoSesion(false)
-  }, [autenticado, login, router, setUsuario])
+      setValidandoSesion(false)
+    })()
+    return () => { cancelled = true }
+  }, [autenticado, restoreSession, router])
 
   if (validandoSesion || !autenticado) {
     return (

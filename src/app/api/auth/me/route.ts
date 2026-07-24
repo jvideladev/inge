@@ -1,21 +1,23 @@
 /**
- * GET /api/auth/me
- * Devuelve el usuario autenticado desde la sesión SSO/LDAP.
+ * GET /api/auth/me — usuario de la sesión actual (provider-agnostic).
  */
 import { NextResponse } from 'next/server'
+import { getAuthProvider } from '@/lib/auth'
+import { extractBearerToken } from '@/lib/auth/request'
 
-export async function GET() {
-  // TODO: validar la sesión SSO y obtener el usuario:
-  // const session = await getServerSession()
-  // if (!session) return NextResponse.json({ message: 'No autenticado' }, { status: 401 })
-  // const usuario = await prisma.usuario.findUnique({ where: { email: session.user.email } })
-  // return NextResponse.json(usuario)
-
-  // Mock temporal:
-  return NextResponse.json({
-    id:     'u1',
-    nombre: 'Carlos Méndez',
-    perfil: 'Operativo',
-    email:  'cmendez@totalplay.com.mx',
-  })
+export async function GET(request: Request) {
+  try {
+    const token = extractBearerToken(request)
+    if (!token) {
+      return NextResponse.json({ message: 'No autenticado' }, { status: 401 })
+    }
+    const user = await getAuthProvider().validateToken(token)
+    if (!user) {
+      return NextResponse.json({ message: 'Sesión inválida o expirada' }, { status: 401 })
+    }
+    return NextResponse.json(user)
+  } catch (e: any) {
+    console.error('[GET /api/auth/me]', e)
+    return NextResponse.json({ message: e?.message ?? 'Error' }, { status: 500 })
+  }
 }

@@ -1,8 +1,9 @@
 'use client'
 import { memo } from 'react'
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from 'reactflow'
-import { ENLACE_STYLE, ORIGEN_COLOR } from '@/lib/utils'
 import { useAppStore } from '@/store/app.store'
+import { useConfigStore } from '@/store/config.store'
+import { CoreIcon } from '@/components/ui/CoreIcon'
 import type { EnlaceData } from '@/types'
 
 function EnlaceEdge({
@@ -11,14 +12,17 @@ function EnlaceEdge({
   data, selected
 }: EdgeProps<EnlaceData>) {
   const temaOscuro = useAppStore((s) => s.temaOscuro)
+  const enlaceStyle = useConfigStore((s) => s.enlaceStyle)
+  const origenColorFn = useConfigStore((s) => s.origenColor)
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition
   })
 
-  const style      = data ? ENLACE_STYLE[data.tipo] : ENLACE_STYLE.UTP
-  const origenColor = data ? ORIGEN_COLOR[data.origen] : '#9098B0'
+  const style      = enlaceStyle(data?.tipo ?? 'UTP')
+  const origenColor = data ? origenColorFn(data.origen) : '#9098B0'
   const cmdbColor   = data?.registradoCMDB ? '#0D9488' : '#9098B0'
   const cmdbTitle   = data?.registradoCMDB ? 'Registrado en CMDB' : 'Sin CMDB'
+  const esCore = Boolean(data?.core)
 
   return (
     <>
@@ -49,24 +53,16 @@ function EnlaceEdge({
             alignItems: 'center',
           }}
         >
-          {/* Badge principal: origen + CMDB */}
-          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/95 dark:bg-[#161b27]/95 border shadow-sm ${
+          {/* CMDB | Core | Origen */}
+          <div className={`flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-white/95 dark:bg-[#161b27]/95 border shadow-sm ${
             selected
               ? 'border-blue-400 dark:border-[#4a8fff] ring-2 ring-blue-200/80 dark:ring-[#4a8fff]/30'
               : 'border-gray-200 dark:border-[#2a3349]'
           }`}>
-            {/* Checkmark CMDB — izquierda (igual que en dispositivos) */}
-            <svg width="8" height="8" viewBox="0 0 14 14" className="flex-shrink-0" role="img" aria-label={cmdbTitle}>
+            <svg width="7" height="7" viewBox="0 0 14 14" className="flex-shrink-0" role="img" aria-label={cmdbTitle}>
               <title>{cmdbTitle}</title>
               {data?.registradoCMDB ? (
-                <polyline
-                  points="1,8 5,12 13,2"
-                  stroke={cmdbColor}
-                  strokeWidth="2.5"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <polyline points="1,8 5,12 13,2" stroke={cmdbColor} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
               ) : (
                 <>
                   <line x1="3" y1="3" x2="11" y2="11" stroke={cmdbColor} strokeWidth="2.5" strokeLinecap="round" />
@@ -74,9 +70,9 @@ function EnlaceEdge({
                 </>
               )}
             </svg>
-            {/* Separador */}
-            <span className="w-px h-2.5 bg-gray-200 dark:bg-[#2a3349] flex-shrink-0" />
-            {/* Dot de origen — derecha (igual que en dispositivos) */}
+            <span className="w-px h-2 bg-gray-200 dark:bg-[#2a3349] flex-shrink-0" />
+            <CoreIcon core={esCore} size={7} />
+            <span className="w-px h-2 bg-gray-200 dark:bg-[#2a3349] flex-shrink-0" />
             <span
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: origenColor }}
@@ -84,7 +80,6 @@ function EnlaceEdge({
             />
           </div>
 
-          {/* Número de enlace debajo del badge */}
           {data?.metadatos?.numeroEnlace && (
             <div className="mt-0.5 flex justify-center">
               <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300 bg-white/90 dark:bg-[#161b27]/90 px-1.5 py-px rounded border border-gray-200 dark:border-[#2a3349]">

@@ -1,30 +1,54 @@
 /**
- * GET    /api/ingenierias/[id]  — Obtiene una ingeniería por ID
- * PATCH  /api/ingenierias/[id]  — Actualiza nodos y edges (guardado del canvas)
- * DELETE /api/ingenierias/[id]  — Elimina una ingeniería
+ * GET    /api/ingenierias/[id]  — Detalle
+ * PATCH  /api/ingenierias/[id]  — Guarda topología (solo editables)
+ * DELETE /api/ingenierias/[id]  — Baja lógica (solo editables)
  */
 import { NextResponse } from 'next/server'
-import { INGENIERIAS_MOCK } from '@/data/mock'
+import {
+  getIngenieriaById,
+  softDeleteIngenieria,
+  updateTopologia,
+} from '@/lib/ingenierias.repo'
 
 interface Params { params: Promise<{ id: string }> }
 
+function errorResponse(e: any) {
+  const status = e?.status ?? 500
+  return NextResponse.json({ message: e?.message ?? 'Error' }, { status })
+}
+
 export async function GET(_req: Request, context: Params) {
-  const { id } = await context.params
-  // TODO: const ing = await prisma.ingenieria.findUniqueOrThrow({ where: { id } })
-  const ing = INGENIERIAS_MOCK.find((i) => i.id === id)
-  if (!ing) return NextResponse.json({ message: 'No encontrada' }, { status: 404 })
-  return NextResponse.json(ing)
+  try {
+    const { id } = await context.params
+    const ing = await getIngenieriaById(id)
+    if (!ing) return NextResponse.json({ message: 'No encontrada' }, { status: 404 })
+    return NextResponse.json(ing)
+  } catch (e: any) {
+    console.error('[GET /api/ingenierias/:id]', e)
+    return errorResponse(e)
+  }
 }
 
 export async function PATCH(request: Request, context: Params) {
-  const { id } = await context.params
-  const body = await request.json()
-  // TODO: const updated = await prisma.ingenieria.update({ where: { id }, data: { ...body, modificadaEn: new Date() } })
-  return NextResponse.json({ ...body, id, modificadaEn: new Date().toISOString() })
+  try {
+    const { id } = await context.params
+    const body = await request.json()
+    const usuario = body.usuario ?? body.creadaPor ?? 'Usuario'
+    const updated = await updateTopologia(id, body.nodes ?? [], body.edges ?? [], usuario)
+    return NextResponse.json(updated)
+  } catch (e: any) {
+    console.error('[PATCH /api/ingenierias/:id]', e)
+    return errorResponse(e)
+  }
 }
 
 export async function DELETE(_req: Request, context: Params) {
-  const { id } = await context.params
-  // TODO: await prisma.ingenieria.update({ where: { id }, data: { activa: false } })
-  return new NextResponse(null, { status: 204 })
+  try {
+    const { id } = await context.params
+    await softDeleteIngenieria(id)
+    return new NextResponse(null, { status: 204 })
+  } catch (e: any) {
+    console.error('[DELETE /api/ingenierias/:id]', e)
+    return errorResponse(e)
+  }
 }

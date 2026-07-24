@@ -2,15 +2,17 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { USUARIOS_MOCK } from '@/data/mock'
+import { useAppStore } from '@/store/app.store'
 
 export default function LoginPage() {
   const router = useRouter()
+  const loginWithCredentials = useAppStore((s) => s.loginWithCredentials)
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
@@ -19,30 +21,15 @@ export default function LoginPage() {
       return
     }
 
-    const usuarioEncontrado = USUARIOS_MOCK.find(
-      (u) =>
-        u.email.toLowerCase() === usuario.toLowerCase() &&
-        u.password === password
-    )
-
-    if (!usuarioEncontrado) {
-      setError('Usuario o contraseña incorrectos.')
-      return
+    setLoading(true)
+    try {
+      await loginWithCredentials(usuario.trim(), password)
+      router.push('/')
+    } catch (err: any) {
+      setError(err?.message ?? 'Usuario o contraseña incorrectos.')
+    } finally {
+      setLoading(false)
     }
-
-    localStorage.setItem(
-      'ingenierias-auth',
-      JSON.stringify({
-        usuarioId: usuarioEncontrado.id,
-        email: usuarioEncontrado.email,
-        nombre: usuarioEncontrado.nombre,
-        perfil: usuarioEncontrado.perfil,
-        loginAt: new Date().toISOString(),
-        authType: 'SSO_SIMULADO',
-      })
-    )
-
-    router.push('/')
   }
 
   return (
@@ -91,6 +78,7 @@ export default function LoginPage() {
                 onChange={(e) => setUsuario(e.target.value)}
                 className="mt-3 h-14 w-full rounded-xl border border-slate-200 bg-white px-5 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 placeholder="ejemplo@correo.com"
+                autoComplete="username"
               />
             </div>
 
@@ -104,6 +92,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-3 h-14 w-full rounded-xl border border-slate-200 bg-white px-5 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 placeholder="••••••••"
+                autoComplete="current-password"
               />
             </div>
 
@@ -115,16 +104,17 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="h-14 w-full rounded-xl bg-[#3c465f] text-lg font-bold text-white transition hover:bg-[#2f384e]"
+              disabled={loading}
+              className="h-14 w-full rounded-xl bg-[#3c465f] text-lg font-bold text-white transition hover:bg-[#2f384e] disabled:opacity-60"
             >
-              Ingresar
+              {loading ? 'Ingresando…' : 'Ingresar'}
             </button>
           </form>
         </div>
       </section>
       <footer className="w-full bg-[#344052] px-6 py-5 text-white">
         <div className="mx-auto flex  max-w-7xl flex-col items-center gap-4 text-center lg:flex-row lg:justify-between">
-          
+
           <div className="flex felx-wrap justify-center gap-6 font-medium">
             <button>ⓘ Necesita Ayuda</button>
             <button>◉ Consultar Tutorial</button>

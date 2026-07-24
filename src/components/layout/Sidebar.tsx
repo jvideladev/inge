@@ -1,18 +1,10 @@
 'use client'
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { DeviceIcon, LIGHT_COLORS } from '@/components/ui/DeviceIcons'
-import { ENLACE_STYLE } from '@/lib/utils'
+import { DeviceIcon } from '@/components/ui/DeviceIcons'
 import { useAppStore } from '@/store/app.store'
-import { DISPOSITIVOS_CONFIG } from '@/config/dispositivos'
+import { useConfigStore } from '@/store/config.store'
 import type { TipoDispositivo, TipoEnlace } from '@/types'
-
-const TIPOS_ENLACE: { tipo: TipoEnlace; label: string }[] = [
-  { tipo: 'UTP',       label: 'Enlace UTP'   },
-  { tipo: 'Fibra',     label: 'Fibra óptica' },
-  { tipo: 'Microonda', label: 'Microonda'     },
-  { tipo: 'Logico',    label: 'Enlace lógico' },
-]
 
 export type LayoutModo = 'horizontal' | 'vertical' | 'cuadricula' | 'conexiones'
 
@@ -29,6 +21,7 @@ interface Props {
   onAutoLayout:        (modo: LayoutModo) => void
   mostrarLeyendas:     boolean
   onToggleLeyendas:    () => void
+  soloLectura?:        boolean
 }
 
 // ── Flyout de auto-ajuste ─────────────────────────────────────────────────────
@@ -183,10 +176,17 @@ function AutoAjusteButton({ onAutoLayout }: { onAutoLayout: (modo: LayoutModo) =
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
-export function Sidebar({ tipoEnlaceActivo, setTipoEnlaceActivo, onAutoLayout, mostrarLeyendas, onToggleLeyendas }: Props) {
+export function Sidebar({ tipoEnlaceActivo, setTipoEnlaceActivo, onAutoLayout, mostrarLeyendas, onToggleLeyendas, soloLectura = false }: Props) {
   const temaOscuro = useAppStore((s) => s.temaOscuro)
+  const dispositivos = useConfigStore((s) => s.dispositivos)
+  const enlaces = useConfigStore((s) => s.enlaces)
+  const enlaceStyle = useConfigStore((s) => s.enlaceStyle)
 
   const onDragStart = (e: React.DragEvent, tipo: TipoDispositivo) => {
+    if (soloLectura) {
+      e.preventDefault()
+      return
+    }
     e.dataTransfer.setData('application/dispositivo', tipo)
     e.dataTransfer.effectAllowed = 'move'
   }
@@ -197,36 +197,44 @@ export function Sidebar({ tipoEnlaceActivo, setTipoEnlaceActivo, onAutoLayout, m
       bg-[#EDF2FA] dark:bg-[#161b27]
       border-r border-[#BFD0E8] dark:border-[#2a3349]
     ">
+      {soloLectura && (
+        <div className="mx-2 mt-2 mb-1 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-2 py-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+          Demo · solo lectura
+        </div>
+      )}
       {/* Dispositivos — ocupa el espacio disponible; sólo esta sección hace scroll */}
       <div className="flex flex-col min-h-0 flex-1">
         <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-widest px-3 pt-3 pb-1 flex-shrink-0">
           Dispositivos
         </p>
         <div className="grid grid-cols-2 gap-1 px-2 pb-2 overflow-y-auto min-h-0 flex-1">
-          {DISPOSITIVOS_CONFIG.map(({ tipo, label }) => {
-            const light = LIGHT_COLORS[tipo]
+          {dispositivos.map((disp) => {
+            const fill = temaOscuro ? disp.colorFillDark : disp.colorFillLight
+            const stroke = temaOscuro ? disp.colorStrokeDark : disp.colorStrokeLight
             return (
               <div
-                key={tipo}
-                draggable
-                onDragStart={(e) => onDragStart(e, tipo)}
-                className="
-                  flex flex-col items-center gap-1 py-1.5 px-1 rounded-lg cursor-grab
+                key={disp.codigo}
+                draggable={!soloLectura}
+                onDragStart={(e) => onDragStart(e, disp.codigo as TipoDispositivo)}
+                className={`
+                  flex flex-col items-center gap-1 py-1.5 px-1 rounded-lg
                   border border-transparent
-                  hover:border-[#A8BFD8] dark:hover:border-[#2a3349]
-                  hover:bg-[#DDE8F5] dark:hover:bg-[#1e2435]
                   transition-colors select-none
-                "
-                title={`Arrastrar ${label} al canvas`}
+                  ${soloLectura
+                    ? 'opacity-40 cursor-not-allowed'
+                    : 'cursor-grab hover:border-[#A8BFD8] dark:hover:border-[#2a3349] hover:bg-[#DDE8F5] dark:hover:bg-[#1e2435]'
+                  }
+                `}
+                title={soloLectura ? 'Solo lectura' : `Arrastrar ${disp.label} al canvas`}
               >
                 <DeviceIcon
-                  tipo={tipo}
+                  tipo={disp.codigo as TipoDispositivo}
                   size={42}
-                  color={temaOscuro ? undefined : light?.color}
-                  strokeColor={temaOscuro ? undefined : light?.strokeColor}
+                  color={fill}
+                  strokeColor={stroke}
                 />
                 <span className="text-sm text-gray-700 dark:text-[#8b95b0] text-center leading-tight">
-                  {label}
+                  {disp.label}
                 </span>
               </div>
             )
@@ -241,16 +249,18 @@ export function Sidebar({ tipoEnlaceActivo, setTipoEnlaceActivo, onAutoLayout, m
           Tipo de enlace
         </p>
         <div className="flex flex-col gap-0.5 px-2 pb-2">
-          {TIPOS_ENLACE.map(({ tipo, label }) => {
-            const s      = ENLACE_STYLE[tipo]
-            const activo = tipoEnlaceActivo === tipo
+          {enlaces.map((enlace) => {
+            const s      = enlaceStyle(enlace.codigo)
+            const activo = tipoEnlaceActivo === enlace.codigo
             return (
               <button
-                key={tipo}
-                onClick={() => setTipoEnlaceActivo(tipo)}
+                key={enlace.codigo}
+                onClick={() => !soloLectura && setTipoEnlaceActivo(enlace.codigo as TipoEnlace)}
+                disabled={soloLectura}
                 className={`
                   flex items-center gap-2.5 px-2 py-2 rounded-md text-left w-full
                   transition-colors
+                  ${soloLectura ? 'opacity-50 cursor-not-allowed' : ''}
                   ${activo
                     ? 'bg-blue-100 dark:bg-[#1e2435] border border-blue-300 dark:border-[#4a8fff]'
                     : 'hover:bg-[#DDE8F5] dark:hover:bg-[#1e2435] border border-transparent'
@@ -261,7 +271,7 @@ export function Sidebar({ tipoEnlaceActivo, setTipoEnlaceActivo, onAutoLayout, m
                   <line x1="0" y1="3" x2="26" y2="3" stroke={s.stroke} strokeWidth={s.strokeWidth} strokeDasharray={s.strokeDasharray}/>
                 </svg>
                 <span className={`text-sm ${activo ? 'text-blue-600 dark:text-[#4a8fff] font-medium' : 'text-gray-700 dark:text-[#8b95b0]'}`}>
-                  {label}
+                  {enlace.label}
                 </span>
               </button>
             )

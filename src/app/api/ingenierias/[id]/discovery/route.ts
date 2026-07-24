@@ -1,32 +1,49 @@
 /**
  * POST /api/ingenierias/[id]/discovery
- * Consulta el Servicio de Discovery de Totalplay y genera los nodos y edges
- * correspondientes en la ingeniería.
+ * Mock de Discovery: requiere IP; reemplaza la topología con datos de ejemplo (core=true).
+ * Cuando Totalplay entregue el servicio real, se cambia el conector en lib/discovery.
  */
 import { NextResponse } from 'next/server'
+import { getIngenieriaById, updateTopologia } from '@/lib/ingenierias.repo'
+import { mockDiscoveryPorIp } from '@/lib/discovery/mock'
+import { esEstadoEditableOperativo } from '@/lib/utils'
 
 interface Params { params: Promise<{ id: string }> }
 
 export async function POST(request: Request, context: Params) {
-  const { id } = await context.params
-  const { cuenta } = await request.json()
+  try {
+    const { id } = await context.params
+    const body = await request.json().catch(() => ({}))
+    const ip = String(body.ip ?? '').trim()
+    const usuario = String(body.usuario ?? 'Usuario')
 
-  // TODO: llamar al Servicio Discovery de Totalplay:
-  // const DISCOVERY_URL = process.env.DISCOVERY_BASE_URL
-  // const DISCOVERY_KEY = process.env.DISCOVERY_API_KEY
-  // const discoveryData = await fetch(`${DISCOVERY_URL}/cuenta/${cuenta}`, {
-  //   headers: { 'Authorization': `Bearer ${DISCOVERY_KEY}` }
-  // }).then(r => r.json())
+    if (!ip) {
+      return NextResponse.json({ message: 'Se requiere la IP para Discovery' }, { status: 400 })
+    }
 
-  // TODO: mapear la respuesta del Discovery al formato de nodos/edges del canvas:
-  // const { nodes, edges } = mapDiscoveryToCanvas(discoveryData)
+    const ing = await getIngenieriaById(id)
+    if (!ing) return NextResponse.json({ message: 'No encontrada' }, { status: 404 })
+    if (!ing.editable) {
+      return NextResponse.json({ message: 'Ingeniería de demo: solo lectura' }, { status: 403 })
+    }
+    if (!esEstadoEditableOperativo(ing.estado)) {
+      return NextResponse.json(
+        { message: `Discovery solo en En construcción o Rechazada (estado: ${ing.estado})` },
+        { status: 409 },
+      )
+    }
 
-  // TODO: guardar en BD y devolver ingeniería actualizada:
-  // const updated = await prisma.ingenieria.update({ where: { id }, data: { nodes, edges } })
+    // TODO: reemplazar mock por DISCOVERY_BASE_URL + API key de Totalplay
+    const { nodes, edges } = mockDiscoveryPorIp(ip)
+    const updated = await updateTopologia(id, nodes, edges, usuario)
 
-  return NextResponse.json({
-    message: 'Integración con Discovery pendiente de implementar',
-    ingenieriaId: id,
-    cuenta,
-  }, { status: 501 })
+    return NextResponse.json({
+      ...updated,
+      discovery: { mock: true, ip, message: 'Topología reemplazada con mock de Discovery' },
+    })
+  } catch (e: any) {
+    const status = e?.status ?? 500
+    console.error('[POST /api/ingenierias/:id/discovery]', e)
+    return NextResponse.json({ message: e?.message ?? 'Error' }, { status })
+  }
 }

@@ -10,6 +10,7 @@
  */
 
 import type { Ingenieria, EstadoIngenieria } from '@/types'
+import { authHeaders } from '@/lib/auth-client'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
@@ -18,13 +19,18 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}/api${path}`
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+      ...options?.headers,
+    },
     ...options,
   })
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }))
     throw new Error(error?.message ?? `Error ${res.status}`)
   }
+  if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
 
@@ -51,18 +57,27 @@ export const ingenieriasApi = {
   },
 
   /** Actualiza nodos y edges del canvas (guardado) */
-  guardar(id: string, nodes: any[], edges: any[]): Promise<Ingenieria> {
+  guardar(id: string, nodes: any[], edges: any[], usuario?: string): Promise<Ingenieria> {
     return request<Ingenieria>(`/ingenierias/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ nodes, edges }),
+      body: JSON.stringify({ nodes, edges, usuario }),
     })
   },
 
-  /** Cambia el estado de una ingeniería */
-  cambiarEstado(id: string, estado: EstadoIngenieria): Promise<Ingenieria> {
+  /** Cambia el estado de una ingeniería (comentario requerido al rechazar) */
+  cambiarEstado(
+    id: string,
+    estado: EstadoIngenieria,
+    opts?: { usuario?: string; perfil?: string; comentario?: string },
+  ): Promise<Ingenieria> {
     return request<Ingenieria>(`/ingenierias/${id}/estado`, {
       method: 'PATCH',
-      body: JSON.stringify({ estado }),
+      body: JSON.stringify({
+        estado,
+        usuario: opts?.usuario,
+        perfil: opts?.perfil,
+        comentario: opts?.comentario,
+      }),
     })
   },
 
@@ -79,11 +94,28 @@ export const ingenieriasApi = {
     })
   },
 
-  /** Solicita generación de ingeniería desde Discovery */
-  generarDesdeDiscovery(id: string, params: { cuenta: string }): Promise<Ingenieria> {
+  /** Discovery (mock): requiere IP; reemplaza topología */
+  generarDesdeDiscovery(
+    id: string,
+    params: { ip: string; usuario?: string },
+  ): Promise<Ingenieria> {
     return request<Ingenieria>(`/ingenierias/${id}/discovery`, {
       method: 'POST',
       body: JSON.stringify(params),
+    })
+  },
+
+  listComentarios(id: string): Promise<{ items: import('@/lib/comentarios.repo').IngenieriaComentario[] }> {
+    return request(`/ingenierias/${id}/comentarios`)
+  },
+
+  addComentario(
+    id: string,
+    data: { texto: string; usuario?: string; perfil?: string; estadoDestino?: string },
+  ): Promise<import('@/lib/comentarios.repo').IngenieriaComentario> {
+    return request(`/ingenierias/${id}/comentarios`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     })
   },
 
@@ -135,9 +167,53 @@ export const discoveryApi = {
 // ── Auth ───────────────────────────────────────────────────────────────────
 
 export const authApi = {
+  /** Login vía AuthProvider (local / futuro LDAP|OAuth) */
+  login(email: string, password: string): Promise<{
+    token: string
+    provider: string
+    expiresAt: string
+    user: { id: string; nombre: string; email: string; perfil: string }
+  }> {
+    return request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+  },
 
-  /** Obtiene el usuario autenticado actual (desde sesión SSO) */
-  me(): Promise<{ id: string; nombre: string; perfil: string }> {
+  /** Cierra la sesión en el servidor */
+  logout(): Promise<{ ok: boolean }> {
+    return request('/auth/logout', { method: 'POST' })
+  },
+
+  /** Obtiene el usuario de la sesión actual */
+  me(): Promise<{ id: string; nombre: string; email: string; perfil: string }> {
     return request('/auth/me')
+  },
+}
+
+// ── Configuración ──────────────────────────────────────────────────────────
+
+export const configApi = {
+  /** Configuración activa para el runtime */
+  get(): Promise<import('@/types/config').AppConfig> {
+    return request('/config')
+  },
+
+  /** Admin: lista completa (incluye inactivos) */
+  admin(): Promise<{
+    dispositivos: import('@/types/config').CfgDispositivoTipo[]
+    enlaces: import('@/types/config').CfgEnlaceTipo[]
+    camposDispositivo: import('@/types/config').CfgCampoPanel[]
+    camposEnlace: import('@/types/config').CfgCampoPanel[]
+  }> {
+    return request('/config/admin')
+  },
+
+  /** Admin: actualiza / reordena */
+  patch(body: Record<string, unknown>): Promise<unknown> {
+    return request('/config/admin', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
   },
 }

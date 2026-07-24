@@ -43,9 +43,9 @@ export function UserMenu({ align = 'right' }: UserMenuProps) {
     }
   }, [])
 
-  const cerrarSesion = () => {
+  const cerrarSesion = async () => {
     setOpen(false)
-    logout()
+    await logout()
     router.replace('/login')
   }
 

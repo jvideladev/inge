@@ -9,27 +9,37 @@
     "dev": "next dev --turbopack --port 6001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:schema": "node -e \"const{readFileSync}=require('fs');const{spawnSync}=require('child_process');const sql=readFileSync('sql/schema.sql');spawnSync('C:/wamp64/bin/mariadb/mariadb11.5.2/bin/mysql.exe',['-u','root','-P','3307','--default-character-set=utf8mb4'],{input:sql,stdio:['pipe','inherit','inherit']})\"",
+    "db:schema-hibrido": "node -e \"const{readFileSync}=require('fs');const{spawnSync}=require('child_process');const sql=readFileSync('sql/schema-hibrido.sql');spawnSync('C:/wamp64/bin/mariadb/mariadb11.5.2/bin/mysql.exe',['-u','inge','-pinge_dev','-P','3307','--default-character-set=utf8mb4'],{input:sql,stdio:['pipe','inherit','inherit']})\"",
+    "db:schema-comentarios": "node -e \"const{readFileSync}=require('fs');const{spawnSync}=require('child_process');const sql=readFileSync('sql/schema-comentarios.sql');spawnSync('C:/wamp64/bin/mariadb/mariadb11.5.2/bin/mysql.exe',['-u','inge','-pinge_dev','-P','3307','--default-character-set=utf8mb4'],{input:sql,stdio:['pipe','inherit','inherit']})\"",
+    "db:proyectar": "tsx scripts/proyectar-hibrido.ts",
+    "db:seed": "tsx scripts/seed-demos.ts",
+    "db:seed-config": "tsx scripts/seed-config.ts",
+    "db:seed-users": "tsx scripts/seed-users.ts"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
+    "mysql2": "^3.23.1",
     "next": "^16.2.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "reactflow": "^11.11.4",
-    "zustand": "^5.0.0",
+    "tailwind-merge": "^2.5.4",
     "xlsx": "^0.18.5",
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^2.5.4"
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.6.0",
-    "tailwindcss": "^3.4.0",
-    "postcss": "^8.4.0",
     "autoprefixer": "^10.4.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "^16.2.9"
+    "eslint-config-next": "^16.2.9",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "tsx": "^4.23.1",
+    "typescript": "^5.6.0"
   }
 }

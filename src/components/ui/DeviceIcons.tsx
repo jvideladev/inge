@@ -346,8 +346,8 @@ const ICON_MAP: Record<TipoDispositivo, React.FC<IconProps>> = {
   Splitter:     SplitterIcon,
 }
 
-export function DeviceIcon({ tipo, size, color, strokeColor }: { tipo: TipoDispositivo } & IconProps) {
-  const Comp = ICON_MAP[tipo]
+export function DeviceIcon({ tipo, size, color, strokeColor }: { tipo: string } & IconProps) {
+  const Comp = ICON_MAP[tipo as TipoDispositivo]
   return Comp ? <Comp size={size} color={color} strokeColor={strokeColor} /> : null
 }
 

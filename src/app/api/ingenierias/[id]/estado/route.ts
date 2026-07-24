@@ -1,24 +1,63 @@
 /**
- * PATCH /api/ingenierias/[id]/estado — Cambia el estado de una ingeniería
- * Si el nuevo estado es "Aprovisionada", actualiza la CMDB automáticamente.
+ * PATCH /api/ingenierias/[id]/estado — Cambia el estado (solo editables).
+ * Body: { estado, usuario, perfil?, comentario? }
+ * Rechazada exige comentario. En revisión acepta comentario opcional.
+ * Si pasa a Aprobada: marca publicación pendiente y avisa webhook.
+ * Si pasa a Aprovisionada: genera versión histórica.
  */
 import { NextResponse } from 'next/server'
+import { updateEstado, registrarIntentoPublicacion, getIngenieriaById } from '@/lib/ingenierias.repo'
+import { addComentario } from '@/lib/comentarios.repo'
+import { notifyPublicacionWebhook } from '@/lib/integracion/webhook'
+import type { EstadoIngenieria } from '@/types'
 
 interface Params { params: Promise<{ id: string }> }
 
 export async function PATCH(request: Request, context: Params) {
-  const { id } = await context.params
-  const { estado } = await request.json()
+  try {
+    const { id } = await context.params
+    const body = await request.json()
+    const estado = body.estado as EstadoIngenieria
+    const usuario = body.usuario ?? 'Usuario'
+    const perfil = body.perfil ?? null
+    const comentario = typeof body.comentario === 'string' ? body.comentario.trim() : ''
 
-  // TODO: const ing = await prisma.ingenieria.update({ where: { id }, data: { estado } })
+    if (!estado) {
+      return NextResponse.json({ message: 'estado requerido' }, { status: 400 })
+    }
 
-  // TODO: si estado === 'Aprovisionada', llamar al Conector CMDB:
-  // if (estado === 'Aprovisionada') {
-  //   await cmdbConector.actualizar(ing)
-  // }
+    if (estado === 'Rechazada' && !comentario) {
+      return NextResponse.json(
+        { message: 'Al rechazar se requiere un comentario' },
+        { status: 400 },
+      )
+    }
 
-  // TODO: registrar en audit log:
-  // await prisma.auditLog.create({ data: { ingenieriaId: id, accion: 'CAMBIO_ESTADO', detalle: estado } })
+    let updated = await updateEstado(id, estado, usuario)
 
-  return NextResponse.json({ id, estado, modificadaEn: new Date().toISOString() })
+    if (comentario) {
+      await addComentario({
+        ingenieriaId: id,
+        usuario,
+        perfil,
+        texto: comentario,
+        estadoDestino: estado,
+      })
+    }
+
+    let webhook: { ok: boolean; skipped?: boolean; error?: string } | undefined
+    if (estado === 'Aprobada') {
+      webhook = await notifyPublicacionWebhook(updated)
+      if (!webhook.skipped) {
+        await registrarIntentoPublicacion(id, webhook.ok, webhook.error)
+        updated = (await getIngenieriaById(id)) ?? updated
+      }
+    }
+
+    return NextResponse.json({ ...updated, webhook })
+  } catch (e: any) {
+    const status = e?.status ?? 500
+    console.error('[PATCH /api/ingenierias/:id/estado]', e)
+    return NextResponse.json({ message: e?.message ?? 'Error' }, { status })
+  }
 }

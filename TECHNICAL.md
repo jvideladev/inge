@@ -2,319 +2,208 @@
 
 ## Arquitectura general
 
-Aplicación **Next.js 16.2** con App Router, TypeScript, Tailwind CSS y React Flow para el canvas interactivo. El frontend y el backend corren en el **mismo proceso Node.js** durante desarrollo y en la primera etapa de producción. Cuando se requiera separación, un cambio de variable de entorno es suficiente (ver sección de despliegue).
+Aplicación **Next.js 16** (App Router) + TypeScript + Tailwind + React Flow.
+Frontend y API Routes en el mismo proceso Node. Persistencia en **MariaDB** (WAMP local puerto **3307**).
 
 ```
 Navegador (React 19)
-  └── Next.js 16.2 (App Router + API Routes — mismo proceso)
-        ├── Base de datos (PostgreSQL 16+ o MariaDB 10.6+) via Prisma
-        ├── Servicio Discovery        (externo, Totalplay)
-        ├── Conector CMDB             (externo, Totalplay)
-        └── SMC v2                    (externo, solo lectura)
+  └── Next.js (App Router + /api)
+        ├── MariaDB (foto JSON + proyección híbrida + catálogos + auth)
+        ├── Sistema RFC / aprovisionamiento (externo — consume nuestras APIs)
+        ├── Discovery / CMDB / SMC (externos Totalplay — pendientes)
+        └── Neo4j (NO se escribe desde esta app; otro sistema puede hacerlo)
+```
+
+Modelo de datos: **híbrido**. La foto del diagrama vive en `ingenierias.nodes_json` / `edges_json`; al guardar se proyecta a tablas `ingenieria_dispositivos`, `ingenieria_interfaces`, `ingenieria_enlaces`, `ingenieria_enlace_miembros`. Ver `modelo-datos-hibrido-cliente.txt`.
+
+---
+
+## Estados de ingeniería y transiciones
+
+| Estado | Cómo se alcanza |
+|--------|-----------------|
+| **En construcción** | Al crear; el operativo trabaja la topología |
+| **En revisión** | Operativo (desde En construcción o Rechazada), con comentario opcional |
+| **Aprobada** | Supervisor (desde En revisión) → dispara publicación |
+| **Rechazada** | Supervisor (desde En revisión) **con comentario obligatorio**; se edita como construcción |
+| **Aprovisionada** | Supervisor (manual por ahora); genera **versión histórica**; futuro: sync tablas externas |
+| **Implementada** | Supervisor (manual por ahora); futuro: sync tablas externas |
+
+```
+En construcción ──(Operativo + comentario opcional)──► En revisión
+                                                          │
+                               Supervisor aprueba ────────┼──► Aprobada ──(Supervisor)──► Aprovisionada ──► Implementada
+                               Supervisor rechaza ────────┘         │                         │
+                               (comentario obligatorio)             │                         │
+                                                          ▼         │              (versión histórica)
+                                                     Rechazada      │
+                                                          │         │
+                               Operativo reenvía ─────────┴─────────┘
+                               (comentario opcional)
+```
+
+Comentarios: conversación persistente (`ingenieria_comentarios`), visible desde el grid.
+Discovery: botón en En construcción / Rechazada → aviso de overwrite → IP → mock Discovery (`core=true`).
+Versiones: solo al pasar a **Aprovisionada** (no en cada guardado).
+
+Perfil **Consulta**: solo lectura. Demos (`editable=0`): no cambian estado.
+Operativo: solo edita en En construcción / Rechazada.
+
+Al pasar a **Aprobada**:
+1. `publicacion_estado = pendiente`
+2. Webhook opcional (`INTEGRACION_WEBHOOK_URL`)
+3. Disponible en API de integración + `vistaUrl` para popup
+
+---
+
+## Integración con sistema RFC / aprovisionamiento
+
+### Flujo de negocio
+
+1. Supervisor **aprueba** la ingeniería en este aplicativo.
+2. Este sistema **publica** (lista + detalle JSON + URL de vista HTML).
+3. Otro aplicativo levanta esa información para el **RFC (Request for Change)**.
+4. Ese aplicativo aprovisiona dispositivos y enlaces visibles en la ingeniería.
+5. Este sistema **lee** (cuando exista el contrato) un web service de ingenierías ya aprovisionadas y actualiza el estado a **Aprovisionada**.
+
+```
+[Ingenierías] --publica Aprobada--> [Sistema RFC / aprovisionamiento]
+       ^                                      |
+       |         (WS externo — pendiente)     |
+       +--------- Aprovisionada <-------------+
+```
+
+### Salida — web services que exponemos
+
+Auth API JSON: header `X-Integration-Key: <INTEGRACION_API_KEY>`  
+(En desarrollo, si la key no está definida, se permite el acceso. En production es obligatoria.)
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/api/integracion/ingenierias?pendientes=1` | Lista Aprobadas (filtro pendientes de ACK) |
+| `GET` | `/api/integracion/ingenierias/[id]` | Payload completo (metadatos + nodes + edges + **vistaUrl**) |
+| `POST` | `/api/integracion/ingenierias/[id]/ack` | ACK del consumidor `{ "ok": true }` / `{ "ok": false, "error": "..." }` |
+| `POST` | `/api/integracion/sincronizar-aprovisionadas` | Dispara lectura del WS externo (entrada) |
+
+`schemaVersion` actual del contrato: **1.1** (incluye `vistaUrl`).
+
+#### Payload de detalle (resumen)
+
+```json
+{
+  "schemaVersion": "1.1",
+  "evento": "ingenieria.aprobada",
+  "publicadoEn": "2026-07-23T03:00:00.000Z",
+  "vistaUrl": "http://localhost:6001/vista/ingenieria/ing-xxx",
+  "ingenieria": {
+    "id": "ing-xxx",
+    "nombre": "...",
+    "cliente": "...",
+    "cuenta": "...",
+    "estado": "Aprobada",
+    "version": 3,
+    "publicacionEstado": "pendiente"
+  },
+  "nodes": [ ],
+  "edges": [ ]
+}
+```
+
+#### Vista HTML para popup / iframe
+
+| Campo | Valor |
+|-------|--------|
+| URL | `{NEXT_PUBLIC_APP_URL}/vista/ingenieria/{id}` |
+| Uso | Abrir en popup o iframe del sistema RFC |
+| Contenido | Cabecera (nombre, cliente, cuenta, estado) + canvas React Flow **solo lectura** |
+| Estados visibles | `Aprobada`, `Aprovisionada`, `Implementada` |
+| Autenticación de la página | **Pendiente de definición**. Hoy **sin login**. Se podrá añadir token/SSO sin cambiar la forma de `vistaUrl` en el JSON. |
+
+Ejemplo local: `http://localhost:6001/vista/ingenieria/ing-001`
+
+### Entrada — web service externo (aprovisionadas)
+
+**Estado:** pendiente de especificación Totalplay (URL, auth, formato de respuesta).
+
+Variables previstas:
+
+```bash
+APROVISIONAMIENTO_WS_URL=
+APROVISIONAMIENTO_API_KEY=
+```
+
+Comportamiento implementado (stub listo para enchufar):
+
+- `POST /api/integracion/sincronizar-aprovisionadas` (protegido con `X-Integration-Key`)
+- Llama al WS externo (GET)
+- Espera una lista de ítems con al menos `id` (acepta `items` / `data` / `ingenierias`)
+- Si la ingeniería local está en **Aprobada**, la pasa a **Aprovisionada** (usuario sistema `sistema-aprovisionamiento`)
+- Si `APROVISIONAMIENTO_WS_URL` no está definida → `503` con mensaje claro
+
+Cuando llegue el contrato real: ajustar mapper en `src/lib/integracion/aprovisionamiento.ts` y, si hace falta, el método HTTP / headers.
+
+### Variables de entorno (integración)
+
+```bash
+INTEGRACION_API_KEY=              # Auth de nuestras APIs de integración
+INTEGRACION_WEBHOOK_URL=          # Opcional: push al aprobar
+NEXT_PUBLIC_APP_URL=http://localhost:6001   # Base absoluta para vistaUrl
+
+APROVISIONAMIENTO_WS_URL=         # Pendiente — WS remoto de aprovisionadas
+APROVISIONAMIENTO_API_KEY=        # Pendiente
 ```
 
 ---
 
-## Estructura de carpetas
+## Persistencia MariaDB (resumen)
+
+| Tabla | Rol |
+|-------|-----|
+| `ingenierias` | Metadatos + foto JSON + estado + publicación |
+| `ingenieria_versiones` | Snapshots históricos |
+| `ingenieria_dispositivos` / `_interfaces` / `_enlaces` / `_enlace_miembros` | Proyección híbrida |
+| `cfg_*` | Catálogos admin |
+| `usuarios` / `auth_sesiones` | Auth local (LDAP/SSO después) |
+
+Scripts: `npm run db:schema-hibrido`, `npm run db:proyectar`.
+
+---
+
+## Auth de aplicación (usuarios humanos)
+
+- Proveedor vía `AUTH_PROVIDER` (`local` hoy; placeholders ldap/oauth/sso).
+- APIs: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`.
+- Distinto de `X-Integration-Key` (máquina a máquina).
+
+---
+
+## Capas de código relevantes
 
 ```
-src/
-├── types/index.ts                       # Todos los tipos TypeScript compartidos
-├── store/app.store.ts                   # Estado global (Zustand 5)
-├── lib/
-│   ├── api.ts                           # Capa de servicio — único punto de llamadas al backend
-│   └── utils.ts                         # Helpers, colores, estilos de enlaces
-├── data/
-│   └── mock.ts                          # Datos de prueba (activos mientras MOCK_MODE = true)
-├── components/
-│   ├── canvas/
-│   │   ├── Canvas.tsx                   # Canvas principal (React Flow)
-│   │   ├── DispositivoNode.tsx          # Nodo custom de React Flow
-│   │   ├── EnlaceEdge.tsx               # Edge custom de React Flow
-│   │   └── FabMenu.tsx                  # Botón flotante con menú radial
-│   ├── layout/
-│   │   ├── Topbar.tsx                   # Barra superior
-│   │   ├── Sidebar.tsx                  # Panel izquierdo (dispositivos + leyendas)
-│   │   ├── PropiedadesPanel.tsx         # Panel derecho de propiedades del objeto seleccionado
-│   │   ├── ListaIngenierias.tsx         # Pantalla de listado y gestión de ingenierías
-│   │   └── EditorIngenieria.tsx         # Pantalla del editor (topbar + sidebar + canvas)
-│   └── ui/
-│       └── DeviceIcons.tsx              # SVGs de íconos estilo Cisco por tipo de dispositivo
-└── app/
-    ├── page.tsx                         # Enruta entre lista y editor según estado del store
-    ├── layout.tsx                       # Layout raíz con soporte dark/light
-    ├── globals.css                      # Tailwind + overrides de React Flow
-    └── api/
-        ├── ingenierias/
-        │   ├── route.ts                 # GET (lista) / POST (crear)
-        │   └── [id]/
-        │       ├── route.ts             # GET / PATCH (guardar canvas) / DELETE
-        │       ├── estado/route.ts      # PATCH — cambia estado, actualiza CMDB si aplica
-        │       ├── discovery/route.ts   # POST — genera ingeniería desde Discovery
-        │       ├── importar-excel/route.ts   # POST — importa desde Excel
-        │       ├── exportar-excel/route.ts   # GET — devuelve .xlsx
-        │       └── exportar-pdf/route.ts     # GET — devuelve .pdf
-        ├── cmdb/
-        │   ├── verificar/route.ts       # GET — verifica si un hostname está en CMDB
-        │   └── actualizar/route.ts      # POST — actualiza CMDB con objetos de una ingeniería
-        ├── discovery/
-        │   └── cuenta/route.ts          # GET — consulta Discovery por número de cuenta
-        └── auth/
-            └── me/route.ts              # GET — devuelve usuario autenticado (SSO)
+src/lib/integracion/
+  auth.ts                 # X-Integration-Key
+  payload.ts              # buildPublicacionPayload (+ vistaUrl)
+  urls.ts                 # buildVistaUrl
+  webhook.ts              # push opcional al aprobar
+  aprovisionamiento.ts    # sync entrada (stub WS externo)
+
+src/app/api/integracion/...
+src/app/vista/ingenieria/[id]/page.tsx   # HTML popup
+src/components/vista/VistaCanvas.tsx
 ```
 
 ---
 
 ## Separación frontend / backend
 
-### Ahora (mismo servidor)
-`NEXT_PUBLIC_API_URL` está vacío. Todas las llamadas van a `/api/...` del mismo origen.
-
-### Con backend separado (sin cambiar código)
-```bash
-# .env.local en el servidor del frontend
-NEXT_PUBLIC_API_URL=https://api.totalplay.internal
-```
-El archivo `src/lib/api.ts` centraliza el 100% de las llamadas — no hay `fetch` dispersos en los componentes. Un solo cambio de variable y listo.
+`NEXT_PUBLIC_API_URL` vacío = mismo origen (`/api/...`).  
+Si se separa el backend: apuntar esa variable; las llamadas pasan por `src/lib/api.ts`.
 
 ---
 
-## MOCK_MODE
+## Próximos pasos de integración (cliente)
 
-En `src/store/app.store.ts`:
-
-```ts
-const MOCK_MODE = true   // cambiar a false cuando el backend esté listo
-```
-
-Con `true`: el store usa los datos de `src/data/mock.ts` y no llama a la API.
-Con `false`: el store llama a `src/lib/api.ts` que apunta al backend real.
-
----
-
-## Estado global — `src/store/app.store.ts`
-
-Zustand 5. Contiene:
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `usuario` | `Usuario` | Usuario activo con su `perfil` |
-| `temaOscuro` | `boolean` | Tema activo |
-| `ingenierias` | `Ingenieria[]` | Lista completa |
-| `loading` | `boolean` | Estado de carga |
-| `error` | `string \| null` | Error de la última operación |
-| `ingenieriaActiva` | `Ingenieria \| null` | Ingeniería abierta en el editor |
-
-Acciones principales: `fetchIngenierias`, `addIngenieria`, `updateIngenieria`, `deleteIngenieria`, `abrirIngenieria`, `cerrarIngenieria`, `guardarCambios`, `cambiarEstado`, `toggleTema`.
-
----
-
-## Tipos principales — `src/types/index.ts`
-
-### `Ingenieria`
-```ts
-{
-  id, nombre, cliente, cuenta,
-  estado: EstadoIngenieria,     // Nueva | Aprovisionada | Modificada | Instalada | Rechazada
-  creadaPor, creadaEn, modificadaEn,
-  nodes: any[],                 // nodos de React Flow con DispositivoData
-  edges: any[],                 // edges de React Flow con EnlaceData
-}
-```
-
-### `DispositivoData`  (data de cada nodo)
-```ts
-{
-  tipo: TipoDispositivo,        // Router | Switch | Firewall | Server | OLT | ONT | Nube | AccessPoint | Splitter | MediaConverter
-  label: string,
-  origen: OrigenObjeto,         // Discovery | Excel | Manual
-  registradoCMDB: boolean,
-  metadatos: MetadatoDispositivo,
-}
-```
-
-### `MetadatoDispositivo`
-```ts
-{
-  hostname, modelo, ip, serial, ubicacion, fabricante,
-  customFields: Record<string, string>   // campos personalizados
-}
-```
-
-### `EnlaceData`  (data de cada edge)
-```ts
-{
-  tipo: TipoEnlace,             // UTP | Fibra | Microonda | Logico
-  origen: OrigenObjeto,
-  registradoCMDB: boolean,
-  metadatos: MetadatoEnlace,
-}
-```
-
-### `MetadatoEnlace`
-```ts
-{
-  numeroEnlace, puertoSalida, etiquetaSalida,
-  puertoLlegada, etiquetaLlegada, servicios,
-  customFields: Record<string, string>
-}
-```
-
-### `PerfilUsuario`
-```ts
-'Operativo' | 'Supervisor' | 'Consulta'
-```
-
-| Perfil | Crear | Modificar | Aprobar/Rechazar | Solo lectura |
-|--------|-------|-----------|------------------|--------------|
-| Operativo | ✓ | ✓ | ✗ | ✗ |
-| Supervisor | ✓ | ✓ | ✓ | ✗ |
-| Consulta | ✗ | ✗ | ✗ | ✓ |
-
----
-
-## Capa de servicio — `src/lib/api.ts`
-
-Todas las llamadas HTTP al backend pasan por este archivo. Nunca llamar `fetch` directamente desde los componentes.
-
-```ts
-ingenieriasApi.list()
-ingenieriasApi.get(id)
-ingenieriasApi.create(data)
-ingenieriasApi.guardar(id, nodes, edges)
-ingenieriasApi.cambiarEstado(id, estado)
-ingenieriasApi.delete(id)
-ingenieriasApi.importarExcel(id, rows)
-ingenieriasApi.generarDesdeDiscovery(id, { cuenta })
-ingenieriasApi.exportarExcel(id)   // devuelve Blob
-ingenieriasApi.exportarPdf(id)     // devuelve Blob
-
-cmdbApi.verificar(hostname)
-cmdbApi.actualizar(ingenieriaId)
-
-discoveryApi.consultarCuenta(cuenta)
-
-authApi.me()
-```
-
----
-
-## Canvas — `src/components/canvas/Canvas.tsx`
-
-React Flow maneja internamente el estado visual de nodos y edges. El canvas sincroniza al store de Zustand vía callbacks:
-
-| Callback | Acción |
-|----------|--------|
-| `onDrop` | Crea nodo en posición del drag, tipo viene de `dataTransfer` |
-| `onConnect` | Crea edge con el tipo de enlace activo |
-| `onNodeClick` | Selecciona nodo → abre PropiedadesPanel |
-| `onPaneClick` | Deselecciona |
-
----
-
-## Nodo custom — `src/components/canvas/DispositivoNode.tsx`
-
-Renderiza por nodo:
-- SVG del ícono del dispositivo (viene de `DeviceIcons.tsx`)
-- Punto de color = origen del objeto (naranja=Discovery, azul=Excel, gris=Manual)
-- Tilde verde = registrado en CMDB (sin tilde = no registrado)
-- Label e IP debajo del ícono
-- 8 handles de React Flow (source + target en los 4 lados)
-
----
-
-## Edge custom — `src/components/canvas/EnlaceEdge.tsx`
-
-Renderiza por enlace:
-- Línea con color y estilo según tipo de enlace
-- Punto de color de origen en el centro
-- Tilde CMDB si aplica
-- Número de enlace si tiene
-
----
-
-## Estilos de enlaces — `src/lib/utils.ts`
-
-| Tipo | Color | Estilo |
-|------|-------|--------|
-| UTP | `#2563EB` | Sólido |
-| Fibra | `#D97706` | Sólido |
-| Microonda | `#7C3AED` | Guiones `8 4` |
-| Lógico | `#0D9488` | Punteado `3 3` |
-
----
-
-## Íconos — `src/components/ui/DeviceIcons.tsx`
-
-Cada tipo de dispositivo tiene un componente SVG React propio, con colores distintos para tema oscuro y claro. El export principal es `DeviceIcon` que recibe `tipo` y renderiza el componente correspondiente.
-
-Dispositivos soportados: `Router`, `Switch`, `Firewall`, `Server`, `OLT`, `ONT`, `Nube`, `AccessPoint`, `Splitter`, `MediaConverter`.
-
----
-
-## FAB — `src/components/canvas/FabMenu.tsx`
-
-Botón flotante en esquina inferior derecha. Al abrirse despliega 4 acciones en cuarto de círculo (ángulos 90°, 120°, 150°, 180° con radio 76px):
-
-| Botón | Color | Acción |
-|-------|-------|--------|
-| Guardar | Azul | `guardarCambios()` en el store |
-| PDF | Rojo | `ingenieriasApi.exportarPdf()` — placeholder |
-| Excel | Verde | `ingenieriasApi.exportarExcel()` — placeholder |
-| Pantalla | Violeta | `requestFullscreen()` |
-
----
-
-## Sidebar — `src/components/layout/Sidebar.tsx`
-
-Panel izquierdo fijo. Contiene:
-- Grid de dispositivos arrastrables al canvas (drag & drop nativo)
-- Selector de tipo de enlace activo (afecta el próximo edge que se dibuje)
-- Leyenda de origen (punto de color)
-- Leyenda de CMDB (tilde verde = Registrado en CMDB)
-
----
-
-## Panel de propiedades — `src/components/layout/PropiedadesPanel.tsx`
-
-Panel derecho contextual, visible al seleccionar un nodo. Muestra y permite editar:
-- Badge de CMDB (Registrado / No registrado)
-- Badge de origen con color
-- Campos estándar del dispositivo (hostname, modelo, IP, serial, ubicación, fabricante)
-- Campos personalizados (custom fields) — editables y agregables en tiempo real
-
----
-
-## Variables de entorno — `.env.example`
-
-```bash
-NEXT_PUBLIC_API_URL=          # vacío = mismo servidor; URL = backend separado
-
-DATABASE_URL=                 # postgresql://... o mysql://...
-
-DISCOVERY_BASE_URL=
-DISCOVERY_API_KEY=
-
-CMDB_BASE_URL=
-CMDB_API_KEY=
-
-SMC_BASE_URL=
-
-LDAP_URL=
-LDAP_BASE_DN=
-LDAP_BIND_USER=
-LDAP_BIND_PASSWORD=
-```
-
----
-
-## Próximos pasos cuando lleguen las specs
-
-1. Definir `DATABASE_URL` en `.env.local`
-2. Crear `prisma/schema.prisma` con las tablas (cambiar `provider` según el motor elegido)
-3. Correr `npx prisma migrate dev`
-4. Completar los `TODO` en `src/app/api/` uno por uno
-5. Cambiar `MOCK_MODE = false` en `src/store/app.store.ts`
-6. Configurar `LDAP_URL` e integrar autenticación en `src/app/api/auth/me/route.ts`
-7. Configurar `DISCOVERY_BASE_URL` e implementar `src/app/api/ingenierias/[id]/discovery/route.ts`
-8. Configurar `CMDB_BASE_URL` e implementar `src/app/api/cmdb/`
+1. Confirmar si la **vista HTML** llevará autenticación (token en query, SSO cookie, etc.).
+2. Entregar contrato del **WS de aprovisionadas** (URL, auth, schema JSON).
+3. Definir si el consumidor usará **pull** (GET lista/detalle) y/o **push** (webhook) y política de **ACK**.
+4. Ambientes UAT/Prod: `NEXT_PUBLIC_APP_URL` e `INTEGRACION_API_KEY` por entorno.

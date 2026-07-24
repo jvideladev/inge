@@ -57,10 +57,12 @@ export const INGENIERIAS_MOCK: Ingenieria[] = [
     nombre: 'Ingeniería IMSS Cuenta 1000023500',
     cliente: 'IMSS',
     cuenta:  '1000023500',
-    estado:  'Nueva',
+    estado: 'En construcción',
     creadaPor:    'Carlos Méndez',
     creadaEn:     '2025-01-10T10:00:00Z',
     modificadaEn: '2025-01-15T14:30:00Z',
+    editable: false,
+    versionActual: 1,
     nodes: [
       {
         id: 'rout-0032',
@@ -214,6 +216,8 @@ export const INGENIERIAS_MOCK: Ingenieria[] = [
     creadaPor:    'Carlos Méndez',
     creadaEn:     '2025-01-05T09:00:00Z',
     modificadaEn: '2025-01-12T11:00:00Z',
+    editable: false,
+    versionActual: 1,
     nodes: [
       {
         id: 'pmx-prov', type: 'dispositivo', position: { x: 60, y: 300 },
@@ -291,6 +295,8 @@ export const INGENIERIAS_MOCK: Ingenieria[] = [
     creadaPor:    'Carlos Méndez',
     creadaEn:     '2024-12-01T08:00:00Z',
     modificadaEn: '2024-12-20T17:00:00Z',
+    editable: false,
+    versionActual: 1,
     nodes: [
       {
         id: 'hsbc-nube', type: 'dispositivo', position: { x: 320, y: 60 },
@@ -368,6 +374,8 @@ export const INGENIERIAS_MOCK: Ingenieria[] = [
     creadaPor:    'Carlos Méndez',
     creadaEn:     '2025-01-08T14:00:00Z',
     modificadaEn: '2025-01-09T10:00:00Z',
+    editable: false,
+    versionActual: 1,
     nodes: [
       {
         id: 'aicm-rb', type: 'dispositivo', position: { x: 60, y: 60 },
@@ -459,6 +467,8 @@ export const INGENIERIAS_MOCK: Ingenieria[] = [
     creadaPor:    'Laura Sánchez',
     creadaEn:     '2025-01-11T11:00:00Z',
     modificadaEn: '2025-01-14T09:30:00Z',
+    editable: false,
+    versionActual: 1,
     nodes: [
       {
         id: 'bnt-prov', type: 'dispositivo', position: { x: 60, y: 300 },

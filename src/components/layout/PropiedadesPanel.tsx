@@ -1,6 +1,7 @@
 'use client'
 import { useRef, useState, useCallback } from 'react'
-import { ORIGEN_COLOR } from '@/lib/utils'
+import { useConfigStore } from '@/store/config.store'
+import { CoreIcon } from '@/components/ui/CoreIcon'
 import type { DispositivoData, EnlaceData, MetadatoDispositivo, MetadatoEnlace, TipoEnlace } from '@/types'
 import type { Node, Edge } from 'reactflow'
 
@@ -21,7 +22,7 @@ interface Props {
   onChangeModo: (m: PanelModo) => void
 }
 
-const TIPOS_ENLACE: TipoEnlace[] = ['UTP', 'Fibra', 'Microonda', 'Logico']
+const TIPOS_ENLACE_FALLBACK: TipoEnlace[] = ['UTP', 'Fibra', 'Microonda', 'Logico']
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
@@ -98,7 +99,9 @@ function NodeProps({ node, onUpdateNode }: { node: Node; onUpdateNode: (id: stri
   const [newVal, setNewVal] = useState('')
   const toast = useToast()
   const data: DispositivoData = node.data
-  const origenColor = ORIGEN_COLOR[data.origen]
+  const origenColorFn = useConfigStore((s) => s.origenColor)
+  const campos = useConfigStore((s) => s.camposDispositivo)
+  const origenColor = origenColorFn(data.origen)
 
   const updateMeta = (key: keyof MetadatoDispositivo, value: string) =>
     onUpdateNode(node.id, { metadatos: { ...data.metadatos, [key]: value } })
@@ -116,29 +119,38 @@ function NodeProps({ node, onUpdateNode }: { node: Node; onUpdateNode: (id: stri
     onUpdateNode(node.id, { metadatos: { ...data.metadatos, customFields: cf } })
   }
 
+  const camposUi = campos.length > 0
+    ? campos
+    : [
+        { campoKey: 'label', label: 'Nombre', grupo: 'raiz' },
+        { campoKey: 'hostname', label: 'Hostname', grupo: 'metadatos' },
+        { campoKey: 'modelo', label: 'Modelo', grupo: 'metadatos' },
+        { campoKey: 'ip', label: 'IP / Dirección', grupo: 'metadatos' },
+        { campoKey: 'serial', label: 'Serial', grupo: 'metadatos' },
+        { campoKey: 'ubicacion', label: 'Ubicación', grupo: 'metadatos' },
+        { campoKey: 'fabricante', label: 'Fabricante', grupo: 'metadatos' },
+      ]
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Campos — única parte scrolleable */}
       <div className="overflow-y-auto flex-1 min-h-0">
         <div className="px-3 pt-3 pb-3 flex flex-col gap-2">
-          {([
-            ['label',      'Nombre'],
-            ['hostname',   'Hostname'],
-            ['modelo',     'Modelo'],
-            ['ip',         'IP / Dirección'],
-            ['serial',     'Serial'],
-            ['ubicacion',  'Ubicación'],
-            ['fabricante', 'Fabricante'],
-          ] as [string, string][]).map(([key, label]) => {
-            const isLabel = key === 'label'
-            const val = isLabel ? data.label : (data.metadatos[key as keyof MetadatoDispositivo] as string)
+          {camposUi.map((campo) => {
+            const key = campo.campoKey
+            const isLabel = key === 'label' || campo.grupo === 'raiz'
+            const val = isLabel && key === 'label'
+              ? data.label
+              : String((data.metadatos as any)?.[key] ?? '')
             return (
               <div key={key}>
-                <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">{label}</p>
+                <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">{campo.label}</p>
                 <input
                   className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={val}
-                  onChange={(e) => isLabel ? onUpdateNode(node.id, { label: e.target.value }) : updateMeta(key as keyof MetadatoDispositivo, e.target.value)}
+                  onChange={(e) => key === 'label'
+                    ? onUpdateNode(node.id, { label: e.target.value })
+                    : updateMeta(key as keyof MetadatoDispositivo, e.target.value)}
                 />
               </div>
             )
@@ -227,6 +239,22 @@ function NodeProps({ node, onUpdateNode }: { node: Node; onUpdateNode: (id: stri
           )}
         </div>
 
+        {/* Core toggle */}
+        <div className="mx-3 mt-2">
+          <label className="flex items-center justify-between gap-2 rounded-md px-2.5 py-2 text-sm border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 cursor-pointer">
+            <span className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium">
+              <CoreIcon core={Boolean(data.core)} size={12} />
+              Core
+            </span>
+            <input
+              type="checkbox"
+              className="rounded border-gray-300"
+              checked={Boolean(data.core)}
+              onChange={(e) => onUpdateNode(node.id, { core: e.target.checked })}
+            />
+          </label>
+        </div>
+
         {/* Origen badge */}
         <div className="mx-3 mt-2 mb-3">
           <div className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium border"
@@ -249,7 +277,10 @@ function EdgeProps({ edge, onUpdateEdge }: { edge: Edge; onUpdateEdge: (id: stri
   const [newVal, setNewVal] = useState('')
   const toast = useToast()
   const data: EnlaceData = edge.data
-  const origenColor = ORIGEN_COLOR[data.origen]
+  const origenColorFn = useConfigStore((s) => s.origenColor)
+  const campos = useConfigStore((s) => s.camposEnlace)
+  const tiposEnlace = useConfigStore((s) => s.enlaces)
+  const origenColor = origenColorFn(data.origen)
 
   const updateMeta = (key: keyof MetadatoEnlace, value: string) =>
     onUpdateEdge(edge.id, { metadatos: { ...data.metadatos, [key]: value } })
@@ -267,29 +298,36 @@ function EdgeProps({ edge, onUpdateEdge }: { edge: Edge; onUpdateEdge: (id: stri
     onUpdateEdge(edge.id, { metadatos: { ...data.metadatos, customFields: cf } })
   }
 
+  const camposUi = campos.length > 0
+    ? campos
+    : [
+        { campoKey: 'numeroEnlace', label: 'Nombre enlace' },
+        { campoKey: 'uuid', label: 'UUID' },
+        { campoKey: 'puertoSalida', label: 'Puerto origen' },
+        { campoKey: 'etiquetaSalida', label: 'Etiqueta origen' },
+        { campoKey: 'puertoLlegada', label: 'Puerto destino' },
+        { campoKey: 'etiquetaLlegada', label: 'Etiqueta destino' },
+        { campoKey: 'servicios', label: 'Servicios' },
+      ]
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Campos — única parte scrolleable */}
       <div className="overflow-y-auto flex-1 min-h-0">
         <div className="px-3 pt-3 pb-3 flex flex-col gap-2">
-          {([
-            ['numeroEnlace',    'Nombre enlace'],
-            ['uuid',            'UUID'],
-            ['puertoSalida',    'Puerto origen'],
-            ['etiquetaSalida',  'Etiqueta origen'],
-            ['puertoLlegada',   'Puerto destino'],
-            ['etiquetaLlegada', 'Etiqueta destino'],
-            ['servicios',       'Servicios'],
-          ] as [keyof MetadatoEnlace, string][]).map(([key, label]) => (
-            <div key={key}>
-              <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">{label}</p>
-              <input
-                className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                value={data.metadatos[key] as string}
-                onChange={(e) => updateMeta(key, e.target.value)}
-              />
-            </div>
-          ))}
+          {camposUi.map((campo) => {
+            const key = campo.campoKey as keyof MetadatoEnlace
+            return (
+              <div key={campo.campoKey}>
+                <p className="text-xs font-semibold text-gray-600 dark:text-[#5a6380] uppercase tracking-wider mb-1">{campo.label}</p>
+                <input
+                  className="w-full text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  value={(data.metadatos[key] as string) ?? ''}
+                  onChange={(e) => updateMeta(key, e.target.value)}
+                />
+              </div>
+            )
+          })}
         </div>
 
         {/* Campos personalizados */}
@@ -369,8 +407,8 @@ function EdgeProps({ edge, onUpdateEdge }: { edge: Edge; onUpdateEdge: (id: stri
             onChange={(e) => onUpdateEdge(edge.id, { tipo: e.target.value as TipoEnlace, metadatos: data.metadatos })}
             className="flex-1 text-sm px-2.5 py-1.5 rounded border bg-white dark:bg-[#1e2435] border-[#BFD0E8] dark:border-[#2a3349] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            {TIPOS_ENLACE.map((t) => (
-              <option key={t} value={t}>{t}</option>
+            {(tiposEnlace.length > 0 ? tiposEnlace : TIPOS_ENLACE_FALLBACK.map((c) => ({ codigo: c, label: c }))).map((t) => (
+              <option key={t.codigo} value={t.codigo}>{t.label}</option>
             ))}
           </select>
         </div>
@@ -386,6 +424,22 @@ function EdgeProps({ edge, onUpdateEdge }: { edge: Edge; onUpdateEdge: (id: stri
               <CmdbX /> No registrado en CMDB
             </div>
           )}
+        </div>
+
+        {/* Core toggle */}
+        <div className="mx-3 mt-2">
+          <label className="flex items-center justify-between gap-2 rounded-md px-2.5 py-2 text-sm border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 cursor-pointer">
+            <span className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium">
+              <CoreIcon core={Boolean(data.core)} size={12} />
+              Core
+            </span>
+            <input
+              type="checkbox"
+              className="rounded border-gray-300"
+              checked={Boolean(data.core)}
+              onChange={(e) => onUpdateEdge(edge.id, { core: e.target.checked })}
+            />
+          </label>
         </div>
 
         {/* Origen badge */}

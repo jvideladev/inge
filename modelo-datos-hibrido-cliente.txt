@@ -1,0 +1,242 @@
+MODELO DE DATOS HÍBRIDO — INGENIERÍAS
+Comparación BD anterior vs aplicación actual · Decisiones de alcance
+================================================================================
+Documento para revisión con Totalplay / stakeholders
+Fecha: 2026-07-22
+Estado: Aplicado en desarrollo (tablas proyectadas + sync al guardar/aprobar)
+Actualización: 2026-07-22 — sql/schema-hibrido.sql + proyección automática
+
+--------------------------------------------------------------------------------
+1. CONTEXTO
+--------------------------------------------------------------------------------
+
+Existe un diseño de base de datos anterior (documento “Estructura-BD-ingenierias”,
+MariaDB, ~14 tablas propias + vistas CMDB externas) orientado a topología
+normalizada: ingenierías, equipos, interfaces IP y enlaces.
+
+La aplicación nueva (React Flow + MariaDB) persiste la topología como “foto”
+del diagrama (JSON de nodos y enlaces), con catálogos administrables, flujo de
+estados, versionado y publicación hacia sistemas externos (p. ej. Neo4j vía
+otro consumidor), sin escribir Neo4j directamente desde esta app.
+
+Este documento fija qué se descarta del modelo viejo, qué se convierte al
+modelo nuevo y qué se agrega — con estrategia híbrida y sin migrar datos
+históricos.
+
+
+--------------------------------------------------------------------------------
+2. DECISIONES YA ACORDADAS
+--------------------------------------------------------------------------------
+
+1. No se migrarán datos históricos de la base anterior.
+2. El PDF / esquema viejo se interpreta como referencia de dominio de la
+   “foto” de una ingeniería (equipos, interfaces, enlaces), no como ETL
+   obligatorio.
+3. No aplica importar dumps SQL viejos (no hay carga de datos legacy).
+4. Catálogo de anillos de fibra: considerar a futuro; fuera del alcance de
+   las ingenierías que se modelan ahora.
+5. Estrategia preferida: híbrida (canvas en JSON + relacional para catálogo,
+   seguridad, workflow, publicación; proyección topológica opcional en fase 2).
+
+
+--------------------------------------------------------------------------------
+3. ESTRATEGIA HÍBRIDA (RESUMEN)
+--------------------------------------------------------------------------------
+
+• Canvas / edición
+  La fuente de la “foto” viva es ingenierias.nodes_json + edges_json
+  (React Flow: dispositivos, posiciones, enlaces y metadatos de UI).
+
+• Relacional (ahora)
+  Catálogos (tipos de dispositivo/enlace, orígenes, campos de panel),
+  usuarios/sesiones, metadatos de ingeniería (cliente, cuenta, estado),
+  versionado y estado de publicación post-aprobación.
+
+• Relacional (fase 2, opcional)
+  Tablas proyectadas de dispositivos / interfaces / enlaces, alimentadas
+  desde la foto al guardar o al aprobar — para consultas CMDB/Neo4j sin
+  parsear JSON a mano. El editor no pasa a “solo tablas” (eso sería otro
+  enfoque, más costoso).
+
+• Externo
+  Vistas CMDB (clientes/cuentas) en datahub u origen corporativo: solo
+  lectura; no se duplican en MariaDB local.
+
+
+Flujo conceptual:
+
+  [Editor React Flow]
+          │
+          ▼
+   nodes_json / edges_json     ←── “la foto” (siempre)
+          │
+          ├── guardado / cambio de estado → ingenieria_versiones (foto histórica)
+          │
+          └── (fase 2) proyección → tablas dispositivos / interfaces / enlaces
+                    └── al aprobar → API de integración / consumidor Neo4j
+
+
+--------------------------------------------------------------------------------
+4. ACLARACIÓN: “FOTO” E INTERFACES
+--------------------------------------------------------------------------------
+
+En el modelo anterior, cada equipo (connections) podía tener filas en
+metadata: segmento IP, máscara, gateway, VLAN, etc. Eso no es otra
+ingeniería: es el detalle de red de esa foto.
+
+En la app actual ese detalle aún no está como tabla propia; vive (o vivirá)
+en el JSON del nodo/enlace o, en fase 2, en tablas proyectadas.
+
+La “foto” = el diagrama completo en un momento dado.
+El versionado = fotos congeladas en ingenieria_versiones.
+La publicación = entrega de esa foto (payload) a otro sistema tras Aprobada.
+
+
+--------------------------------------------------------------------------------
+5. DESCARTAR (NO TRAER DEL MODELO VIEJO)
+--------------------------------------------------------------------------------
+
+Pieza anterior                         Motivo
+-------------------------------------  ------------------------------------------
+clients / sites / engineering          Modelo heredado por sitio; el producto
+                                       trabaja por cuenta/cliente en ingenierias.
+employees                              Poco uso; basta el usuario de aplicación.
+profiles / users (tal cual)            Reemplazados por usuarios + perfiles del
+                                       producto (luego LDAP/SSO).
+tb_bitacora (sin PK / índices)         No clonar esa forma; si hay auditoría,
+                                       se diseña limpia después.
+txmedia                                Colores/estilos en catálogos cfg_*.
+view_cat_anillos en el núcleo actual   Solo futuro; no en ingenierías de ahora.
+Copiar vistas CMDB a MariaDB local     Siguen externas, solo lectura.
+Migración de filas / IDs / dumps       Explicitamente fuera de alcance.
+Soft-delete fila a fila                Soft-delete de ingeniería (activa) +
+(is_deleted en equipos/links)          historial por versión.
+Nombres legacy en schema nuevo         Unificar convención actual (español /
+(ingenieries, connections, etc.)       códigos estables).
+
+
+Checklist “descartado de raíz” para Totalplay:
+  • Datos históricos
+  • Módulo sitios / clients / engineering
+  • Empleados como entidad de negocio
+  • Anillos en ingenierías actuales
+  • Duplicar CMDB en MariaDB de la app
+  • Reescribir el editor para leer solo tablas normalizadas (enfoque B)
+
+
+--------------------------------------------------------------------------------
+6. CONVERTIR (CONCEPTO VIEJO → FORMA NUEVA)
+--------------------------------------------------------------------------------
+
+No es copiar tablas; es equivalencia de dominio.
+
+Concepto anterior          En el modelo híbrido              Notas
+-------------------------  --------------------------------  --------------------
+ingenieries                ingenierias                       + estado, versión,
+(cuenta, nombre, audit)                                      publicación, JSON.
+connections (equipos)      Nodo en nodes_json                hostname, model, ip,
+                           (type: dispositivo)               serial → metadatos.
+typedevices                cfg_dispositivo_tipo              Código, label, icono,
+                                                             colores, activo.
+links (source/target,      Edge en edges_json                medio → tipo de
+puertos, medio, color…)                                      enlace (cfg_enlace_
+                                                             tipo); layout RF
+                                                             sustituye control
+                                                             points / idGraph
+                                                             donde aplique.
+metadata (interfaces IP)   Detalle de la foto                Corto plazo: JSON /
+                                                             customFields.
+                                                             Fase 2: tablas
+                                                             proyectadas.
+txmedia                    cfg_dispositivo_tipo /            Absorbed in catalog.
+                           cfg_enlace_tipo / cfg_origen
+Cliente/cuenta CMDB        campos cliente + cuenta +         Sin tablas locales
+                           lookup a vistas externas          duplicadas.
+“Foto de ingeniería”       nodes/edges + versiones           Vigente = columnas
+                                                             JSON; histórico =
+                                                             ingenieria_versiones.
+
+
+--------------------------------------------------------------------------------
+7. AGREGAR (LO QUE EL MODELO VIEJO NO CUBRÍA BIEN)
+--------------------------------------------------------------------------------
+
+Qué                                    Para qué
+-------------------------------------  ------------------------------------------
+estado + transiciones                  Workflow (Nueva → En revisión → Aprobada
+                                       → … → Implementada).
+ingenieria_versiones                   Historial de fotos del diagrama.
+publicacion_* + API de integración     Otro sistema consume y escribe Neo4j
+                                       (u otros); ACK pendiente/publicada/error.
+cfg_enlace_tipo, cfg_origen,           Editor configurable sin redeploy.
+cfg_campo_panel
+usuarios + auth_sesiones +             Auth moderna; proveedor intercambiable
+provider swappable                     (local → LDAP/OAuth/SSO).
+editable (demos / plantillas)          Solo lectura para demos.
+Modelo de troncal en datos de enlace   Preparado en tipos (clase, miembros);
+(clase, miembros)                      UX de troncales en etapa posterior.
+(Fase 2) tablas proyectadas            Consultas / CMDB / Neo4j sin depender
+dispositivos, interfaces, enlaces      solo del parseo de JSON.
+(Futuro) anillos, bitácora limpia      Fuera del alcance actual.
+
+
+--------------------------------------------------------------------------------
+8. ALCANCE “AHORA” VS “DESPUÉS”
+--------------------------------------------------------------------------------
+
+Ahora
+  • Híbrida “débil”: JSON de canvas + catálogos + auth + estados + publicación.
+  • Interfaces: solo lo necesario en panel / JSON.
+  • Sin anillos en el modelo de ingenierías actuales.
+  • Sin bitácora estilo tabla vieja.
+
+Después (cuando el negocio lo pida)
+  • Proyección relacional de topología (fase 2 híbrida).
+  • Tabla / UX de interfaces y troncales.
+  • Catálogo de anillos.
+  • Auditoría de acciones con PK e índices, si compliance lo exige.
+
+
+--------------------------------------------------------------------------------
+9. LO QUE YA EXISTE EN LA APP (REFERENCIA TÉCNICA)
+--------------------------------------------------------------------------------
+
+Núcleo
+  • ingenierias          — metadatos + nodes_json + edges_json + estado + versión
+  • ingenieria_versiones — snapshots históricos
+  • publicacion_*        — cola/estado para consumidor externo
+
+Configuración
+  • cfg_dispositivo_tipo
+  • cfg_enlace_tipo
+  • cfg_origen
+  • cfg_campo_panel
+
+Seguridad
+  • usuarios
+  • auth_sesiones
+
+Integración (post-aprobación)
+  • GET  /api/integracion/ingenierias?pendientes=1
+  • GET  /api/integracion/ingenierias/[id]     — payload schemaVersion 1.0
+  • POST /api/integracion/ingenierias/[id]/ack — confirmación del consumidor
+  • Auth: header X-Integration-Key
+
+
+--------------------------------------------------------------------------------
+10. SIGUIENTE PASO SUGERIDO (SIN COMPROMETER CÓDIGO AÚN)
+--------------------------------------------------------------------------------
+
+Validar con el cliente este inventario (descartar / convertir / agregar).
+
+Si hay acuerdo, redactar un mini-spec de fase 2:
+  • Sí / no a tablas proyectadas en el corto plazo.
+  • Columnas mínimas de interfaz (si aplican a las ingenierías actuales).
+  • Momento de proyección: al guardar, solo al aprobar, o ambos.
+
+No se contempla migración de datos de la base anterior.
+
+
+--------------------------------------------------------------------------------
+Fin del documento
+================================================================================

@@ -13,7 +13,10 @@ import EnlaceEdge     from './EnlaceEdge'
 import { FabMenu }    from './FabMenu'
 import { PropiedadesPanel, type SelectedItem, type PanelModo } from '@/components/layout/PropiedadesPanel'
 import { useAppStore } from '@/store/app.store'
-import { ENLACE_STYLE, ORIGEN_COLOR, generarId } from '@/lib/utils'
+import { generarId } from '@/lib/utils'
+import { crearEnlaceSimple, normalizeEnlaceData } from '@/lib/enlace'
+import { useConfigStore } from '@/store/config.store'
+import { CoreIcon } from '@/components/ui/CoreIcon'
 import type { TipoDispositivo, TipoEnlace, DispositivoData, EnlaceData } from '@/types'
 import type { LayoutModo } from '@/components/layout/Sidebar'
 
@@ -107,21 +110,24 @@ const DEFAULT_META = {
 
 export interface CanvasHandle {
   autoLayout: (modo: LayoutModo) => void
+  getGraph: () => { nodes: Node[]; edges: Edge[] }
 }
 
-// ── Legend panel ──────────────────────────────────────────────────────────────
-const ORIGENES_LEYENDA = [
-  { label: 'Discovery', color: ORIGEN_COLOR['Discovery'] },
-  { label: 'Excel',     color: ORIGEN_COLOR['Excel']     },
-  { label: 'Manual',    color: ORIGEN_COLOR['Manual']    },
-] as const
-
 function LeyendasPanel() {
+  const origenes = useConfigStore((s) => s.origenes)
+  const origenesUi = origenes.length > 0
+    ? origenes.map((o) => ({ label: o.label, color: o.color }))
+    : [
+        { label: 'Discovery', color: '#16A34A' },
+        { label: 'Excel', color: '#2563EB' },
+        { label: 'Manual', color: '#CA8A04' },
+      ]
+
   return (
     <div className="rounded-lg overflow-hidden shadow-xl border border-gray-200 dark:border-[#2a3349] bg-white dark:bg-[#161b27]">
       <div className="px-3 pt-2.5 pb-1">
         <p className="text-[10px] font-semibold text-gray-400 dark:text-[#5a6380] uppercase tracking-widest mb-1.5">Origen</p>
-        {ORIGENES_LEYENDA.map(({ label, color }) => (
+        {origenesUi.map(({ label, color }) => (
           <div key={label} className="flex items-center gap-2 py-1">
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
             <span className="text-sm text-gray-600 dark:text-gray-300">{label}</span>
@@ -129,20 +135,32 @@ function LeyendasPanel() {
         ))}
       </div>
       <div className="h-px bg-gray-100 dark:bg-[#2a3349] mx-3" />
-      <div className="px-3 pt-1.5 pb-2.5">
+      <div className="px-3 pt-1.5 pb-1.5">
         <p className="text-[10px] font-semibold text-gray-400 dark:text-[#5a6380] uppercase tracking-widest mb-1.5">CMDB</p>
         <div className="flex items-center gap-2 py-1">
-          <svg width="13" height="13" viewBox="0 0 14 14" className="flex-shrink-0">
+          <svg width="11" height="11" viewBox="0 0 14 14" className="flex-shrink-0">
             <polyline points="1,8 5,12 13,2" stroke="#0D9488" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           <span className="text-sm text-gray-600 dark:text-gray-300">Registrado</span>
         </div>
         <div className="flex items-center gap-2 py-1">
-          <svg width="13" height="13" viewBox="0 0 14 14" className="flex-shrink-0">
+          <svg width="11" height="11" viewBox="0 0 14 14" className="flex-shrink-0">
             <line x1="3" y1="3" x2="11" y2="11" stroke="#9098B0" strokeWidth="2.2" strokeLinecap="round"/>
             <line x1="11" y1="3" x2="3" y2="11" stroke="#9098B0" strokeWidth="2.2" strokeLinecap="round"/>
           </svg>
           <span className="text-sm text-gray-600 dark:text-gray-300">Sin CMDB</span>
+        </div>
+      </div>
+      <div className="h-px bg-gray-100 dark:bg-[#2a3349] mx-3" />
+      <div className="px-3 pt-1.5 pb-2.5">
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-[#5a6380] uppercase tracking-widest mb-1.5">Core</p>
+        <div className="flex items-center gap-2 py-1">
+          <CoreIcon core size={11} />
+          <span className="text-sm text-gray-600 dark:text-gray-300">Core</span>
+        </div>
+        <div className="flex items-center gap-2 py-1">
+          <CoreIcon core={false} size={11} />
+          <span className="text-sm text-gray-600 dark:text-gray-300">No Core</span>
         </div>
       </div>
     </div>
@@ -152,6 +170,7 @@ function LeyendasPanel() {
 interface Props {
   tipoEnlaceActivo: TipoEnlace
   mostrarLeyendas:  boolean
+  soloLectura?:     boolean
 }
 
 // ── Optimizar conexiones ──────────────────────────────────────────────────────
@@ -262,10 +281,11 @@ function aplicarLayout(nodes: Node[], edges: Edge[], modo: LayoutModo): Node[] {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnlaceActivo, mostrarLeyendas }, ref) {
+export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnlaceActivo, mostrarLeyendas, soloLectura = false }, ref) {
   const temaOscuro       = useAppStore((s) => s.temaOscuro)
   const ingenieriaActiva = useAppStore((s) => s.ingenieriaActiva)
   const marcarCambios    = useAppStore((s) => s.marcarCambios)
+  const enlaceStyleFn    = useConfigStore((s) => s.enlaceStyle)
 
   const [nodes, setNodes, onNodesChange] = useNodesState(ingenieriaActiva?.nodes ?? [])
   const [edges, setEdges, onEdgesChange] = useEdgesState(ingenieriaActiva?.edges ?? [])
@@ -287,6 +307,7 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
   const [locked, setLocked]              = useState(false)
   const [isLinkDrag, setIsLinkDrag]      = useState(false)
   const edgeUpdateSuccessful = useRef(true)
+  const canvasLocked = locked || soloLectura
 
   // Track changes
   const handleNodesChange = useCallback((changes: any) => {
@@ -305,6 +326,7 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
   // Drop dispositivo from sidebar
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
+    if (soloLectura) return
     const tipo = e.dataTransfer.getData('application/dispositivo') as TipoDispositivo
     if (!tipo || !rfInstance) return
 
@@ -321,12 +343,13 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
         label:          tipo,
         origen:         'Manual',
         registradoCMDB: false,
+        core:           false,
         metadatos:      { ...DEFAULT_META, hostname: tipo }
       } as DispositivoData
     }
     setNodes((ns) => [...ns, newNode])
     marcarCambios()
-  }, [rfInstance, setNodes, marcarCambios])
+  }, [rfInstance, setNodes, marcarCambios, soloLectura])
 
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }
 
@@ -339,24 +362,15 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
   const onConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return
     if (connection.source === connection.target) return
-    const style = ENLACE_STYLE[tipoEnlaceActivo]
+    const style = enlaceStyleFn(tipoEnlaceActivo)
     setEdges((es) => addEdge({
       ...connection,
       type: 'enlace',
       style,
-      data: {
-        tipo:           tipoEnlaceActivo,
-        origen:         'Manual',
-        registradoCMDB: false,
-        metadatos: {
-          uuid: '', numeroEnlace: '', puertoSalida: '', etiquetaSalida: '',
-          puertoLlegada: '', etiquetaLlegada: '', servicios: '',
-          customFields: {}
-        }
-      } as EnlaceData
+      data: crearEnlaceSimple({ tipo: tipoEnlaceActivo }),
     }, es))
     marcarCambios()
-  }, [tipoEnlaceActivo, setEdges, marcarCambios])
+  }, [tipoEnlaceActivo, setEdges, marcarCambios, enlaceStyleFn])
 
   // Select node / edge
   const onNodeClick = (_: React.MouseEvent, node: Node) =>
@@ -369,6 +383,7 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
 
   // Update node data from panel
   const updateNodeData = useCallback((nodeId: string, partial: Partial<DispositivoData>) => {
+    if (soloLectura) return
     setNodes((ns) => ns.map((n) =>
       n.id === nodeId ? { ...n, data: { ...n.data, ...partial } } : n
     ))
@@ -378,23 +393,24 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
         : prev
     )
     marcarCambios()
-  }, [setNodes, marcarCambios])
+  }, [setNodes, marcarCambios, soloLectura])
 
   // Update edge data from panel
   const updateEdgeData = useCallback((edgeId: string, partial: Partial<EnlaceData>) => {
+    if (soloLectura) return
     setEdges((es) => es.map((e) => {
       if (e.id !== edgeId) return e
-      const newData = { ...e.data, ...partial }
-      const style = ENLACE_STYLE[newData.tipo as TipoEnlace] ?? e.style
+      const newData = normalizeEnlaceData({ ...e.data, ...partial })
+      const style = enlaceStyleFn(newData.tipo as TipoEnlace) ?? e.style
       return { ...e, data: newData, style }
     }))
     setSelectedItem((prev) =>
       prev?.kind === 'edge' && prev.item.id === edgeId
-        ? { ...prev, item: { ...prev.item, data: { ...prev.item.data, ...partial } } }
+        ? { ...prev, item: { ...prev.item, data: normalizeEnlaceData({ ...prev.item.data, ...partial }) } }
         : prev
     )
     marcarCambios()
-  }, [setEdges, marcarCambios])
+  }, [setEdges, marcarCambios, soloLectura, enlaceStyleFn])
 
   // Reconnect edge to different handles by dragging the endpoint
   const onEdgeUpdateStart = useCallback(() => {
@@ -604,7 +620,10 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
   }, [nodes, edges, setNodes, setEdges, marcarCambios, rfInstance, drawBg])
 
   // Expose handleAutoLayout to parent via ref
-  useImperativeHandle(ref, () => ({ autoLayout: handleAutoLayout }), [handleAutoLayout])
+  useImperativeHandle(ref, () => ({
+    autoLayout: handleAutoLayout,
+    getGraph: () => ({ nodes, edges }),
+  }), [handleAutoLayout, nodes, edges])
 
   const doZoomIn = useCallback(() => {
     if (!rfInstance) return
@@ -694,9 +713,9 @@ export const Canvas = forwardRef<CanvasHandle, Props>(function Canvas({ tipoEnla
           proOptions={{ hideAttribution: true }}
           onMove={onMove}
           onMoveEnd={onMoveEnd}
-          nodesDraggable={!locked}
-          nodesConnectable={!locked}
-          elementsSelectable={!locked}
+          nodesDraggable={!canvasLocked}
+          nodesConnectable={!canvasLocked}
+          elementsSelectable={!canvasLocked}
         >
           <Controls
             showZoom={false} showFitView={false} showInteractive={false}

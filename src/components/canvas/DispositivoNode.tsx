@@ -1,9 +1,10 @@
 'use client'
 import { memo } from 'react'
 import { Handle, Position, useStore, type NodeProps } from 'reactflow'
-import { DeviceIcon, LIGHT_COLORS } from '@/components/ui/DeviceIcons'
-import { ORIGEN_COLOR } from '@/lib/utils'
+import { DeviceIcon } from '@/components/ui/DeviceIcons'
+import { CoreIcon } from '@/components/ui/CoreIcon'
 import { useAppStore } from '@/store/app.store'
+import { useConfigStore } from '@/store/config.store'
 import type { DispositivoData } from '@/types'
 
 // 6px handles — mismo tamaño que el default de ReactFlow para que el centrado sea exacto
@@ -11,9 +12,10 @@ const HANDLE_CLS = '!bg-gray-400 dark:!bg-gray-500 !w-1.5 !h-1.5 !border-none !r
 
 function DispositivoNode({ id, data, selected }: NodeProps<DispositivoData>) {
   const temaOscuro = useAppStore((s) => s.temaOscuro)
+  const dispositivoByCodigo = useConfigStore((s) => s.dispositivoByCodigo)
+  const origenColorFn = useConfigStore((s) => s.origenColor)
+  const cfg = dispositivoByCodigo(data.tipo)
 
-  // Extremos del enlace seleccionado (el que tiene updatable) que caen sobre este nodo.
-  // Se devuelve como string para que useStore no fuerce re-render en cada cambio.
   const extremos = useStore((s) => {
     const sel = s.edges.find((e) => (e as { updatable?: boolean }).updatable)
     if (!sel) return ''
@@ -23,15 +25,13 @@ function DispositivoNode({ id, data, selected }: NodeProps<DispositivoData>) {
     return out
   })
 
-  // En un extremo del enlace seleccionado no se debe poder INICIAR un enlace nuevo
-  // (sólo mover el existente). No afecta soltar/reconectar ni mover.
   const bloquearInicio = (h: string) =>
     extremos.includes(`S${h};`) || extremos.includes(`T${h}-t;`)
 
-  const lightColors = LIGHT_COLORS[data.tipo]
-  const iconColor       = temaOscuro ? undefined : lightColors?.color
-  const iconStrokeColor = temaOscuro ? undefined : lightColors?.strokeColor
-  const origenColor     = ORIGEN_COLOR[data.origen]
+  const iconColor       = temaOscuro ? cfg?.colorFillDark : cfg?.colorFillLight
+  const iconStrokeColor = temaOscuro ? cfg?.colorStrokeDark : cfg?.colorStrokeLight
+  const origenColor     = origenColorFn(data.origen)
+  const esCore = Boolean(data.core)
 
   return (
     <div
@@ -43,36 +43,26 @@ function DispositivoNode({ id, data, selected }: NodeProps<DispositivoData>) {
         borderRadius: '10px',
       } : undefined}
     >
-      {/* Handles — source (visible) */}
       <Handle type="source" position={Position.Top}    id="top"    className={HANDLE_CLS} isConnectableStart={!bloquearInicio('top')} />
       <Handle type="source" position={Position.Right}  id="right"  className={HANDLE_CLS} isConnectableStart={!bloquearInicio('right')} />
       <Handle type="source" position={Position.Bottom} id="bottom" className={HANDLE_CLS} isConnectableStart={!bloquearInicio('bottom')} />
       <Handle type="source" position={Position.Left}   id="left"   className={HANDLE_CLS} isConnectableStart={!bloquearInicio('left')} />
-      {/* Handles — target: invisibles pero con área amplia para facilitar conexiones/reconexiones */}
       <Handle type="target" position={Position.Top}    id="top-t"    className="opacity-0 !w-5 !h-5 !border-none" />
       <Handle type="target" position={Position.Right}  id="right-t"  className="opacity-0 !w-5 !h-5 !border-none" />
       <Handle type="target" position={Position.Bottom} id="bottom-t" className="opacity-0 !w-5 !h-5 !border-none" />
       <Handle type="target" position={Position.Left}   id="left-t"   className="opacity-0 !w-5 !h-5 !border-none" />
 
-      {/* Ícono */}
       <div className="relative rf-node-body">
         <DeviceIcon tipo={data.tipo} size={52} color={iconColor} strokeColor={iconStrokeColor} />
 
-        {/* Tilde CMDB — top-left */}
+        {/* CMDB — top-left (más chico) */}
         <span
-          className="absolute -top-1 -left-1 flex items-center justify-center w-4 h-4 rounded-full bg-white/90 dark:bg-gray-900/80"
+          className="absolute -top-0.5 -left-0.5 flex items-center justify-center w-3 h-3 rounded-full bg-white/90 dark:bg-gray-900/80"
           title={data.registradoCMDB ? 'Registrado en CMDB' : 'No registrado en CMDB'}
         >
-          <svg width="11" height="11" viewBox="0 0 14 14">
+          <svg width="8" height="8" viewBox="0 0 14 14">
             {data.registradoCMDB ? (
-              <polyline
-                points="1,8 5,12 13,2"
-                stroke="#0D9488"
-                strokeWidth="2.5"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <polyline points="1,8 5,12 13,2" stroke="#0D9488" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             ) : (
               <>
                 <line x1="3" y1="3" x2="11" y2="11" stroke="#9098B0" strokeWidth="2.5" strokeLinecap="round" />
@@ -82,15 +72,22 @@ function DispositivoNode({ id, data, selected }: NodeProps<DispositivoData>) {
           </svg>
         </span>
 
-        {/* Punto de origen — top-right */}
+        {/* Origen — top-right (más chico) */}
         <span
-          className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-gray-900 shadow-sm"
+          className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-900 shadow-sm"
           style={{ backgroundColor: origenColor }}
           title={`Origen: ${data.origen}`}
         />
+
+        {/* Core — bottom-left */}
+        <span
+          className="absolute -bottom-0.5 -left-0.5 flex items-center justify-center w-3 h-3 rounded-full bg-white/90 dark:bg-gray-900/80"
+          title={esCore ? 'Core' : 'No Core'}
+        >
+          <CoreIcon core={esCore} size={8} />
+        </span>
       </div>
 
-      {/* Label */}
       <span className="text-[8px] font-semibold text-gray-800 dark:text-gray-100 leading-tight text-center max-w-[80px] truncate">
         {data.label}
       </span>

@@ -3,52 +3,35 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PerfilesABC } from '@/components/layout/PerfilesABC'
-import { USUARIOS_MOCK } from '@/data/mock'
 import { useAppStore } from '@/store/app.store'
 
 export default function PerfilesPage() {
   const router = useRouter()
   const autenticado = useAppStore((s) => s.autenticado)
-  const setUsuario = useAppStore((s) => s.setUsuario)
-  const login = useAppStore((s) => s.login)
+  const usuario = useAppStore((s) => s.usuario)
+  const restoreSession = useAppStore((s) => s.restoreSession)
   const [validandoAcceso, setValidandoAcceso] = useState(true)
   const [accesoPermitido, setAccesoPermitido] = useState(false)
 
   useEffect(() => {
-    const sesionGuardada = window.localStorage.getItem('ingenierias-auth')
-
-    if (!sesionGuardada) {
-      router.replace('/login')
-      return
-    }
-
-    try {
-      const sesion = JSON.parse(sesionGuardada) as { usuarioId?: string }
-      const usuarioSesion = USUARIOS_MOCK.find((u) => u.id === sesion.usuarioId)
-
-      if (!usuarioSesion) {
-        window.localStorage.removeItem('ingenierias-auth')
+    let cancelled = false
+    ;(async () => {
+      const ok = autenticado || (await restoreSession())
+      if (cancelled) return
+      if (!ok) {
         router.replace('/login')
         return
       }
-
-      if (!autenticado) {
-        setUsuario(usuarioSesion)
-        login(usuarioSesion.id)
-      }
-
-      if (usuarioSesion.perfil !== 'Supervisor') {
+      const perfil = useAppStore.getState().usuario.perfil
+      if (perfil !== 'Supervisor') {
         router.replace('/')
         return
       }
-
       setAccesoPermitido(true)
       setValidandoAcceso(false)
-    } catch {
-      window.localStorage.removeItem('ingenierias-auth')
-      router.replace('/login')
-    }
-  }, [autenticado, login, router, setUsuario])
+    })()
+    return () => { cancelled = true }
+  }, [autenticado, restoreSession, router, usuario.perfil])
 
   if (validandoAcceso || !accesoPermitido) {
     return (

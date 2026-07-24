@@ -1,22 +1,18 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { Ingenieria, Usuario, EstadoIngenieria, PerfilSistema } from '@/types'
-import { INGENIERIAS_MOCK, PERFILES_MOCK, USUARIOS_MOCK } from '@/data/mock'
-import { ingenieriasApi, cmdbApi } from '@/lib/api'
-
-const MOCK_MODE = true
-
-// IDs de las ingenierías de ejemplo: son solo para mostrar y NO deben
-// persistir cambios. Solo se guardan las ingenierías que crea el usuario.
-const MOCK_ING_IDS = new Set(INGENIERIAS_MOCK.map((i) => i.id))
+import type { Ingenieria, Usuario, EstadoIngenieria, PerfilSistema, PerfilUsuario } from '@/types'
+import { PERFILES_MOCK } from '@/data/mock'
+import { ingenieriasApi, authApi } from '@/lib/api'
+import { clearStoredAuth, readStoredAuth, writeStoredAuth } from '@/lib/auth-client'
 
 interface AppStore {
   // Auth
   usuario:    Usuario
   setUsuario: (u: Usuario) => void
   autenticado: boolean
-  login: (usuarioId: string) => void
-  logout: () => void
+  loginWithCredentials: (email: string, password: string) => Promise<void>
+  restoreSession: () => Promise<boolean>
+  logout: () => Promise<void>
 
   // Tema
   temaOscuro: boolean
@@ -33,7 +29,7 @@ interface AppStore {
   loading:          boolean
   error:            string | null
   fetchIngenierias: () => Promise<void>
-  addIngenieria:    (ing: Ingenieria) => void
+  addIngenieria:    (ing: Ingenieria) => Promise<Ingenieria>
   updateIngenieria: (id: string, partial: Partial<Ingenieria>) => void
   deleteIngenieria: (id: string) => Promise<void>
 
@@ -46,27 +42,75 @@ interface AppStore {
   guardarCambios:      (nodes: any[], edges: any[]) => Promise<void>
 
   // Estados
-  cambiarEstado: (id: string, estado: EstadoIngenieria) => Promise<void>
+  cambiarEstado: (id: string, estado: EstadoIngenieria, comentario?: string) => Promise<void>
+}
+
+const EMPTY_USER: Usuario = {
+  id: '',
+  nombre: '',
+  email: '',
+  perfil: 'Consulta',
 }
 
 export const useAppStore = create<AppStore>()(persist((set, get) => ({
 
   // ── Auth ─────────────────────────────────────────────────────────────
-  usuario:    USUARIOS_MOCK[0],
+  usuario:    EMPTY_USER,
   setUsuario: (u) => set({ usuario: u }),
   autenticado: false,
-  login: (usuarioId) => {
-    const usuario = USUARIOS_MOCK.find((u) => u.id === usuarioId) ?? USUARIOS_MOCK[0]
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('ingenierias-auth', JSON.stringify({ usuarioId: usuario.id }))
-    }
-    set({ usuario, autenticado: true })
+
+  loginWithCredentials: async (email, password) => {
+    const session = await authApi.login(email, password)
+    writeStoredAuth({
+      token: session.token,
+      provider: session.provider,
+      expiresAt: session.expiresAt,
+      user: session.user,
+    })
+    set({
+      usuario: {
+        id: session.user.id,
+        nombre: session.user.nombre,
+        email: session.user.email,
+        perfil: session.user.perfil as PerfilUsuario,
+      },
+      autenticado: true,
+    })
   },
-  logout: () => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('ingenierias-auth')
+
+  restoreSession: async () => {
+    const stored = readStoredAuth()
+    if (!stored) {
+      set({ autenticado: false, usuario: EMPTY_USER })
+      return false
     }
-    set({ autenticado: false, ingenieriaActiva: null, cambiosSinGuardar: false })
+    try {
+      const me = await authApi.me()
+      set({
+        usuario: {
+          id: me.id,
+          nombre: me.nombre,
+          email: me.email,
+          perfil: me.perfil as PerfilUsuario,
+        },
+        autenticado: true,
+      })
+      return true
+    } catch {
+      clearStoredAuth()
+      set({ autenticado: false, usuario: EMPTY_USER })
+      return false
+    }
+  },
+
+  logout: async () => {
+    try {
+      await authApi.logout()
+    } catch {
+      // ignore network errors on logout
+    }
+    clearStoredAuth()
+    set({ autenticado: false, usuario: EMPTY_USER, ingenieriaActiva: null, cambiosSinGuardar: false })
   },
 
   // ── Tema ─────────────────────────────────────────────────────────────
@@ -89,16 +133,12 @@ export const useAppStore = create<AppStore>()(persist((set, get) => ({
   deletePerfil: (id) =>
     set((s) => ({ perfiles: s.perfiles.filter((p) => p.id !== id) })),
 
-  // ── Ingenierías ───────────────────────────────────────────────────────
-  ingenierias: MOCK_MODE ? INGENIERIAS_MOCK : [],
+  // ── Ingenierías (MariaDB) ─────────────────────────────────────────────
+  ingenierias: [],
   loading:     false,
   error:       null,
 
   fetchIngenierias: async () => {
-    if (MOCK_MODE) {
-      set({ ingenierias: INGENIERIAS_MOCK })
-      return
-    }
     set({ loading: true, error: null })
     try {
       const data = await ingenieriasApi.list()
@@ -108,8 +148,20 @@ export const useAppStore = create<AppStore>()(persist((set, get) => ({
     }
   },
 
-  addIngenieria: (ing) =>
-    set((s) => ({ ingenierias: [ing, ...s.ingenierias] })),
+  addIngenieria: async (ing) => {
+    const creada = await ingenieriasApi.create({
+      nombre: ing.nombre,
+      cliente: ing.cliente,
+      cuenta: ing.cuenta,
+      estado: ing.estado,
+      creadaPor: ing.creadaPor,
+      nodes: ing.nodes ?? [],
+      edges: ing.edges ?? [],
+      editable: true,
+    })
+    set((s) => ({ ingenierias: [creada, ...s.ingenierias] }))
+    return creada
+  },
 
   updateIngenieria: (id, partial) =>
     set((s) => ({
@@ -123,9 +175,7 @@ export const useAppStore = create<AppStore>()(persist((set, get) => ({
     })),
 
   deleteIngenieria: async (id) => {
-    if (!MOCK_MODE) {
-      await ingenieriasApi.delete(id)
-    }
+    await ingenieriasApi.delete(id)
     set((s) => ({
       ingenierias:      s.ingenierias.filter((i) => i.id !== id),
       ingenieriaActiva: s.ingenieriaActiva?.id === id ? null : s.ingenieriaActiva,
@@ -136,7 +186,11 @@ export const useAppStore = create<AppStore>()(persist((set, get) => ({
   ingenieriaActiva:  null,
   cambiosSinGuardar: false,
 
-  marcarCambios: () => set({ cambiosSinGuardar: true }),
+  marcarCambios: () => {
+    const ing = get().ingenieriaActiva
+    if (ing && ing.editable === false) return
+    set({ cambiosSinGuardar: true })
+  },
 
   abrirIngenieria: (id) => {
     const ing = get().ingenierias.find((i) => i.id === id) ?? null
@@ -146,19 +200,19 @@ export const useAppStore = create<AppStore>()(persist((set, get) => ({
   cerrarIngenieria: () => set({ ingenieriaActiva: null, cambiosSinGuardar: false }),
 
   guardarCambios: async (nodes, edges) => {
-    const { ingenieriaActiva } = get()
+    const { ingenieriaActiva, usuario } = get()
     if (!ingenieriaActiva) return
-
-    if (!MOCK_MODE) {
-      await ingenieriasApi.guardar(ingenieriaActiva.id, nodes, edges)
+    if (ingenieriaActiva.editable === false) {
+      throw new Error('Ingeniería de demo: solo lectura')
     }
 
-    const updated = {
-      ...ingenieriaActiva,
+    const updated = await ingenieriasApi.guardar(
+      ingenieriaActiva.id,
       nodes,
       edges,
-      modificadaEn: new Date().toISOString(),
-    }
+      usuario.nombre,
+    )
+
     set((s) => ({
       ingenieriaActiva: updated,
       cambiosSinGuardar: false,
@@ -167,31 +221,24 @@ export const useAppStore = create<AppStore>()(persist((set, get) => ({
   },
 
   // ── Estados ───────────────────────────────────────────────────────────
-  cambiarEstado: async (id, estado) => {
-    if (!MOCK_MODE) {
-      await ingenieriasApi.cambiarEstado(id, estado)
+  cambiarEstado: async (id, estado, comentario) => {
+    const ing = get().ingenierias.find((i) => i.id === id)
+    if (ing && ing.editable === false) {
+      throw new Error('Ingeniería de demo: solo lectura')
     }
-    get().updateIngenieria(id, { estado })
+    const u = get().usuario
+    const updated = await ingenieriasApi.cambiarEstado(id, estado, {
+      usuario: u.nombre,
+      perfil: u.perfil,
+      comentario,
+    })
+    get().updateIngenieria(id, updated)
   },
 }), {
   name: 'ingenierias-store',
-  version: 1,
+  version: 3,
   storage: createJSONStorage(() => localStorage),
-  // Solo persistimos las ingenierías creadas por el usuario (no los mocks) y
-  // el tema. Los mocks son de solo demostración y no guardan cambios.
   partialize: (s) => ({
-    ingenierias: s.ingenierias.filter((i) => !MOCK_ING_IDS.has(i.id)),
-    temaOscuro:  s.temaOscuro,
+    temaOscuro: s.temaOscuro,
   }),
-  // Al rehidratar: siempre partimos de los mocks frescos y les sumamos las
-  // ingenierías del usuario guardadas en localStorage.
-  merge: (persisted, current) => {
-    const p = (persisted ?? {}) as Partial<AppStore>
-    const delUsuario = (p.ingenierias ?? []).filter((i) => !MOCK_ING_IDS.has(i.id))
-    return {
-      ...current,
-      ...p,
-      ingenierias: [...delUsuario, ...INGENIERIAS_MOCK],
-    }
-  },
 }))
